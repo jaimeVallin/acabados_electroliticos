@@ -1,53 +1,85 @@
-import React, { useEffect } from "react";
-import { Container, Card, Button, Form } from "react-bootstrap";
-import { useAuth } from "../context/AuthProvider";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { supabase } from "../supabaseClient"; 
 
 const CheckListTinas = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    line: "",
+    temperature: "",
+    amperage: "",
+    level: "",
+  });
 
-  useEffect(() => {
-    if (!user) {
-      navigate("/login");
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.line || !formData.temperature || !formData.amperage || !formData.level) {
+      alert("Por favor, completa todos los campos");
+      return;
     }
-  }, [user, navigate]);
+    try {
+      const { data, error } = await supabase
+        .from("checklists")
+        .insert([formData]);
+      if (error) throw error;
+      console.log("Datos guardados:", data);
+      alert("Checklist guardado correctamente");
+    } catch (error) {
+      console.error("Error al guardar:", error.message);
+      alert("Error al guardar el checklist");
+    }
+  };
 
   return (
-    <Container className="mt-4 d-flex justify-content-center">
-      <Card style={{ width: "80%", maxWidth: "600px" }} className="shadow p-4">
-        <h3 className="text-center mb-4">Check-list de Tinas</h3>
-        <Form>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">Nombre del Inspector</Form.Label>
-            <Form.Control type="text" placeholder="Ingrese su nombre" />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">Fecha</Form.Label>
-            <Form.Control type="date" />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">Hora</Form.Label>
-            <Form.Control type="time" />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">Ubicación</Form.Label>
-            <Form.Control type="text" placeholder="Ingrese la ubicación" />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">Temperatura (°C)</Form.Label>
-            <Form.Control type="number" placeholder="Ingrese la temperatura" />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">Observaciones</Form.Label>
-            <Form.Control as="textarea" rows={3} placeholder="Ingrese observaciones" />
-          </Form.Group>
-          <div className="text-center">
-            <Button variant="primary" type="submit" className="w-100">Enviar</Button>
-          </div>
-        </Form>
-      </Card>
-    </Container>
+    <div>
+      <h1>Check-List de tinas</h1>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Línea</label>
+          <input
+            type="text"
+            name="line"
+            value={formData.line}
+            onChange={handleChange}
+            placeholder="Seleccionar Línea"
+          />
+        </div>
+        <div>
+          <label>Temperatura</label>
+          <input
+            type="text"
+            name="temperature"
+            value={formData.temperature}
+            onChange={handleChange}
+            placeholder="55 - 90 °C"
+          />
+        </div>
+        <div>
+          <label>Amperaje</label>
+          <input
+            type="text"
+            name="amperage"
+            value={formData.amperage}
+            onChange={handleChange}
+            placeholder="100 - 500 amp"
+          />
+        </div>
+        <div>
+          <label>Nivel</label>
+          <input
+            type="text"
+            name="level"
+            value={formData.level}
+            onChange={handleChange}
+            placeholder="Que tape las piezas"
+          />
+        </div>
+        <button type="submit">Guardar</button>
+      </form>
+    </div>
   );
 };
 
