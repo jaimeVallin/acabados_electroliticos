@@ -6,7 +6,13 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 
 const NavBar = () => {
-  const { auth, signOut } = useAuth();
+  const { auth, signOut, user } = useAuth();
+
+  // Función para extraer el nombre antes del @
+  const getUsername = () => {
+    if (!user?.email) return "Usuario";
+    return user.email.split("@")[0];
+  };
 
   const handleLogout = async (e) => {
     e.preventDefault();
@@ -21,31 +27,45 @@ const NavBar = () => {
   return (
     <Navbar collapseOnSelect expand="lg" bg="dark" variant="dark">
       <Container>
-        <Navbar.Brand>UserAuth</Navbar.Brand>
+        <Navbar.Brand>Acabados Electrolíticos</Navbar.Brand>
         <Navbar.Toggle aria-controls="responsive-navbar-nav" />
         <Navbar.Collapse id="responsive-navbar-nav">
           <Nav className="me-auto">
             {!auth && (
-              <Nav.Link as={Link} to="/login">
-                Login
-              </Nav.Link>
-            )}
-            {!auth && (
-              <Nav.Link as={Link} to="/register">
-                Register
-              </Nav.Link>
+              <>
+                <Nav.Link as={Link} to="/login">
+                  Iniciar Sesión
+                </Nav.Link>
+                <Nav.Link as={Link} to="/register">
+                  Registrarse
+                </Nav.Link>
+              </>
             )}
             {auth && (
-              <Nav.Link as={Link} to="/">
-                Home
-              </Nav.Link>
+              <>
+                <Nav.Link as={Link} to="/">
+                  <Button variant="outline-light" size="sm">
+                    Inicio
+                  </Button>
+                </Nav.Link>
+                <Nav.Link as={Link} to="/checklist-tinas">
+                  <Button variant="outline-light" size="sm">
+                    Checklist de Tinas
+                  </Button>
+                </Nav.Link>
+              </>
             )}
           </Nav>
           <Nav>
             {auth && (
-              <Nav.Link as={Button} onClick={handleLogout}>
-                LogOut
-              </Nav.Link>
+              <>
+                <Navbar.Text className="me-3">
+                  <strong>{getUsername()}</strong>
+                </Navbar.Text>
+                <Button variant="outline-danger" onClick={handleLogout}>
+                  Cerrar Sesión
+                </Button>
+              </>
             )}
           </Nav>
         </Navbar.Collapse>
