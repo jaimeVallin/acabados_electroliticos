@@ -5,6 +5,7 @@ import Navbar from "react-bootstrap/Navbar";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 
+
 const NavBar = () => {
   const { auth, signOut, user } = useAuth();
 
@@ -27,7 +28,6 @@ const NavBar = () => {
   return (
     <Navbar collapseOnSelect expand="lg" bg="dark" variant="dark">
       <Container>
-        <Navbar.Brand>Acabados Electrolíticos</Navbar.Brand>
         <Navbar.Toggle aria-controls="responsive-navbar-nav" />
         <Navbar.Collapse id="responsive-navbar-nav">
           <Nav className="me-auto">
@@ -43,14 +43,14 @@ const NavBar = () => {
             )}
             {auth && (
               <>
-                <Nav.Link as={Link} to="/">
-                  <Button variant="outline-light" size="sm">
-                    Inicio
-                  </Button>
-                </Nav.Link>
                 <Nav.Link as={Link} to="/checklist-tinas">
                   <Button variant="outline-light" size="sm">
                     Checklist de Tinas
+                  </Button>
+                </Nav.Link>
+                <Nav.Link as={Link} to="/reporte-inspeccion">
+                  <Button variant="outline-light" size="sm">
+                    Reporte de Inspección
                   </Button>
                 </Nav.Link>
               </>
