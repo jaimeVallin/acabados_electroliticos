@@ -54,9 +54,9 @@ const Login = () => {
   };
 
   return (
-    <div className="d-flex align-items-center justify-content-center" style={{ minHeight: "100vh" }}>
-      <Card style={{ width: '400px' }}>
-        <Card.Body>
+    <div className="d-flex align-items-center justify-content-center min-vh-100 p-3 bg-light">
+      <Card className="w-100 shadow" style={{ maxWidth: '400px' }}>
+        <Card.Body className="p-4">
           <h2 className="text-center mb-4">Login</h2>
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" id="email">
