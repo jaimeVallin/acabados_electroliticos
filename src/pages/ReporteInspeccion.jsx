@@ -1,17 +1,19 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Alert, Button, Card, Form, Image, Row, Col } from "react-bootstrap";
-// import { supabase } from "../supabaseClient";
+import { supabase } from "../supabase/client";
 import logo from "../assets/logo.png";
 
 const ReporteInspeccion = () => {
   const navigate = useNavigate();
-  
+
   // Verificar sesión al cargar
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate('/login');
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) navigate("/login");
     };
     checkAuth();
   }, [navigate]);
@@ -29,6 +31,7 @@ const ReporteInspeccion = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedDefect, setSelectedDefect] = useState(null);
 
   // Lista de defectos
   const defectos = [
@@ -49,7 +52,7 @@ const ReporteInspeccion = () => {
   // Calcula total inspeccionado
   useEffect(() => {
     const total = formData.numerosPieza.reduce(
-      (sum, pieza) => sum + (parseInt(pieza.cantidad) || 0), 
+      (sum, pieza) => sum + (parseInt(pieza.cantidad) || 0),
       0
     );
     setTotalInspeccionadas(total);
@@ -58,93 +61,105 @@ const ReporteInspeccion = () => {
   // Calcula total OK
   useEffect(() => {
     const totalDefectos = Object.values(formData.defectos)
-      .filter(val => val !== undefined)
+      .filter((val) => val !== undefined)
       .reduce((sum, val) => {
         if (Array.isArray(val)) {
           return sum + val.reduce((s, v) => s + (parseInt(v) || 0), 0);
         }
         return sum + (parseInt(val) || 0);
       }, 0);
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      totalOK: Math.max(0, totalInspeccionadas - totalDefectos)
+      totalOK: Math.max(0, totalInspeccionadas - totalDefectos),
     }));
   }, [formData.defectos, totalInspeccionadas]);
 
   // Handlers
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handlePiezaChange = (index, field, value) => {
     const newNumerosPieza = [...formData.numerosPieza];
     newNumerosPieza[index][field] = value;
-    setFormData(prev => ({ ...prev, numerosPieza: newNumerosPieza }));
+    setFormData((prev) => ({ ...prev, numerosPieza: newNumerosPieza }));
   };
 
   const agregarPieza = () => {
     if (formData.numerosPieza.length < 2) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         numerosPieza: [...prev.numerosPieza, { numero: "", cantidad: "" }],
         defectos: Object.fromEntries(
           Object.entries(prev.defectos).map(([key, val]) => [
             key,
-            val !== undefined ? [val, "0"] : undefined
+            val !== undefined
+              ? Array.isArray(val)
+                ? [...val, "0"]
+                : [val, "0"]
+              : undefined,
           ])
-        )
+        ),
       }));
     }
   };
 
-  const toggleDefecto = (defecto) => {
-    setFormData((prev) => {
-      const currentValue = prev.defectos[defecto];
-      const isArray = formData.numerosPieza.length > 1;
-  
-      return {
+  // Modificado para mantener los valores existentes
+  const handleDefectoSelect = (defecto) => {
+    setSelectedDefect(defecto);
+
+    // Si el defecto ya existe en el estado, no lo sobrescribimos
+    if (!formData.defectos[defecto]) {
+      setFormData((prev) => ({
         ...prev,
         defectos: {
           ...prev.defectos,
-          [defecto]: currentValue ? undefined : isArray ? ["0", "0"] : "0",
+          [defecto]:
+            prev.numerosPieza.length > 1
+              ? Array(prev.numerosPieza.length).fill("0")
+              : "0",
         },
-      };
-    });
+      }));
+    }
   };
 
-  const handleDefectoChange = (defecto, value, piezaIndex = 0) => {
-    setFormData(prev => ({
+  const handleDefectoChange = (value, piezaIndex = 0) => {
+    if (!selectedDefect) return;
+
+    setFormData((prev) => ({
       ...prev,
       defectos: {
         ...prev.defectos,
-        [defecto]: Array.isArray(prev.defectos[defecto]) 
-          ? prev.defectos[defecto].map((v, i) => i === piezaIndex ? value : v)
-          : value
-      }
+        [selectedDefect]: Array.isArray(prev.defectos[selectedDefect])
+          ? prev.defectos[selectedDefect].map((v, i) =>
+              i === piezaIndex ? value : v
+            )
+          : value,
+      },
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    
+
     try {
       setLoading(true);
       const dataToSend = {
         ...formData,
         totalInspeccionadas,
         fecha: new Date().toISOString(),
-        usuario: (await supabase.auth.getSession()).data.session?.user.email
+        usuario: (await supabase.auth.getSession()).data.session?.user.email,
       };
-      
+
       const { error } = await supabase
-        .from('reportes_inspeccion')
+        .from("reportes_inspeccion")
         .insert([dataToSend]);
-      
+
       if (error) throw error;
-      
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -162,11 +177,13 @@ const ReporteInspeccion = () => {
           <h2 className="mt-2">Reporte de Inspección</h2>
         </div>
       </Card.Header>
-      
+
       <Card.Body>
         {error && <Alert variant="danger">{error}</Alert>}
-        {success && <Alert variant="success">Reporte guardado correctamente!</Alert>}
-        
+        {success && (
+          <Alert variant="success">Reporte guardado correctamente!</Alert>
+        )}
+
         <Form onSubmit={handleSubmit}>
           {/* Sección Datos Principales */}
           <Card className="mb-4 shadow-sm">
@@ -176,8 +193,8 @@ const ReporteInspeccion = () => {
                 <Col md={6}>
                   <Form.Group>
                     <Form.Label>Número de entrada</Form.Label>
-                    <Form.Control 
-                      type="text" 
+                    <Form.Control
+                      type="text"
                       name="numeroEntrada"
                       value={formData.numeroEntrada}
                       onChange={handleChange}
@@ -201,7 +218,9 @@ const ReporteInspeccion = () => {
                       <Form.Control
                         type="text"
                         value={pieza.numero}
-                        onChange={(e) => handlePiezaChange(index, 'numero', e.target.value)}
+                        onChange={(e) =>
+                          handlePiezaChange(index, "numero", e.target.value)
+                        }
                         required
                       />
                     </Form.Group>
@@ -212,7 +231,9 @@ const ReporteInspeccion = () => {
                       <Form.Control
                         type="number"
                         value={pieza.cantidad}
-                        onChange={(e) => handlePiezaChange(index, 'cantidad', e.target.value)}
+                        onChange={(e) =>
+                          handlePiezaChange(index, "cantidad", e.target.value)
+                        }
                         min="1"
                         required
                       />
@@ -220,8 +241,8 @@ const ReporteInspeccion = () => {
                   </Col>
                   {index === 0 && formData.numerosPieza.length < 2 && (
                     <Col md={2} className="d-flex align-items-end">
-                      <Button 
-                        variant="outline-primary" 
+                      <Button
+                        variant="outline-primary"
                         onClick={agregarPieza}
                         className="mb-3 w-100"
                       >
@@ -231,11 +252,13 @@ const ReporteInspeccion = () => {
                   )}
                 </Row>
               ))}
-              
+
               <Row className="mt-3">
                 <Col md={6}>
                   <Form.Group>
-                    <Form.Label className="fw-bold">Total piezas inspeccionadas</Form.Label>
+                    <Form.Label className="fw-bold">
+                      Total piezas inspeccionadas
+                    </Form.Label>
                     <Form.Control
                       type="number"
                       value={totalInspeccionadas}
@@ -248,72 +271,83 @@ const ReporteInspeccion = () => {
             </Card.Body>
           </Card>
 
-          {/* Sección Defectos */}
+          {/* Sección Defectos (radio buttons) */}
           <Card className="mb-4 shadow-sm">
             <Card.Body>
-              <h4 className="mb-3 text-primary">Defectos observados</h4>
+              <h4 className="mb-3 text-primary">
+                Seleccione el defecto observado
+              </h4>
               <Row>
                 {[...Array(3)].map((_, colIndex) => (
                   <Col md={4} key={colIndex}>
-                    {defectos.slice(colIndex * 4, colIndex * 4 + 4).map(defecto => (
-                      <Form.Check 
-                        key={defecto}
-                        type="checkbox"
-                        id={`defecto-${defecto}`}
-                        label={defecto}
-                        checked={!!formData.defectos[defecto]}
-                        onChange={() => toggleDefecto(defecto)}
-                        className="my-2 ps-4"
-                      />
-                    ))}
+                    {defectos
+                      .slice(colIndex * 4, colIndex * 4 + 4)
+                      .map((defecto) => (
+                        <Form.Check
+                          key={defecto}
+                          type="radio"
+                          id={`defecto-${defecto}`}
+                          name="defectos-radio"
+                          label={defecto}
+                          checked={selectedDefect === defecto}
+                          onChange={() => handleDefectoSelect(defecto)}
+                          className="my-2 ps-4"
+                        />
+                      ))}
                   </Col>
                 ))}
               </Row>
             </Card.Body>
           </Card>
 
-          {/* Defectos seleccionados */}
-          {Object.keys(formData.defectos).filter(d => formData.defectos[d] !== undefined).length > 0 && (
+          {/* Card para mostrar el defecto seleccionado */}
+          {selectedDefect && (
             <Card className="mb-4 shadow-sm">
               <Card.Body>
-                <h4 className="mb-3 text-primary">Conteo de defectos</h4>
+                <h4 className="mb-3 text-primary text-center">
+                  Cantidad para defecto: {selectedDefect}
+                </h4>
                 <Row>
-                  {Object.entries(formData.defectos)
-                    .filter(([_, cantidad]) => cantidad !== undefined)
-                    .map(([defecto, cantidad]) => (
-                      <Col md={6} key={defecto} className="mb-3">
-                        <Card className="h-100">
-                          <Card.Body>
-                            <Card.Title className="h6 text-center fw-bold mb-3">{defecto}</Card.Title>
-                            {Array.isArray(cantidad) ? (
-                              <Row>
-                                {cantidad.map((val, i) => (
-                                  <Col key={i} className="text-center">
-                                    <Form.Label>Pieza {i + 1}</Form.Label>
-                                    <Form.Control
-                                      type="number"
-                                      value={val}
-                                      onChange={(e) => handleDefectoChange(defecto, e.target.value, i)}
-                                      min="0"
-                                      className="text-center"
-                                    />
-                                  </Col>
-                                ))}
-                              </Row>
-                            ) : (
-                              <Form.Control
-                                type="number"
-                                value={cantidad}
-                                onChange={(e) => handleDefectoChange(defecto, e.target.value)}
-                                min="0"
-                                className="text-center mx-auto"
-                                style={{ maxWidth: '150px' }}
-                              />
-                            )}
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    ))}
+                  <Col md={6} className="mx-auto">
+                    <Card className="h-100">
+                      <Card.Body>
+                        {formData.numerosPieza.length > 1 ? (
+                          <Row>
+                            {formData.numerosPieza.map((_, index) => (
+                              <Col key={index} className="text-center mb-3">
+                                <Form.Label>Pieza {index + 1}</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  value={
+                                    formData.defectos[selectedDefect]?.[
+                                      index
+                                    ] || "0"
+                                  }
+                                  onChange={(e) =>
+                                    handleDefectoChange(e.target.value, index)
+                                  }
+                                  min="0"
+                                  className="text-center"
+                                />
+                              </Col>
+                            ))}
+                          </Row>
+                        ) : (
+                          <div className="text-center">
+                            <Form.Control
+                              type="number"
+                              value={formData.defectos[selectedDefect] || "0"}
+                              onChange={(e) =>
+                                handleDefectoChange(e.target.value)
+                              }
+                              min="0"
+                              style={{ maxWidth: "150px", margin: "0 auto" }}
+                            />
+                          </div>
+                        )}
+                      </Card.Body>
+                    </Card>
+                  </Col>
                 </Row>
               </Card.Body>
             </Card>
@@ -352,13 +386,13 @@ const ReporteInspeccion = () => {
             </Card.Body>
           </Card>
 
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             type="submit"
             className="w-100 py-3 fw-bold"
             disabled={loading}
           >
-            {loading ? 'Guardando...' : 'Guardar Reporte'}
+            {loading ? "Guardando..." : "Guardar Reporte"}
           </Button>
         </Form>
       </Card.Body>
