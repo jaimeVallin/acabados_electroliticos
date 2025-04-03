@@ -272,31 +272,34 @@ const ReporteInspeccion = () => {
           </Card>
 
           {/* Sección Defectos (radio buttons) */}
+          {/* Sección Defectos (ahora como botones grandes) */}
           <Card className="mb-4 shadow-sm">
             <Card.Body>
               <h4 className="mb-3 text-primary">
                 Seleccione el defecto observado
               </h4>
-              <Row>
-                {[...Array(3)].map((_, colIndex) => (
-                  <Col md={4} key={colIndex}>
-                    {defectos
-                      .slice(colIndex * 4, colIndex * 4 + 4)
-                      .map((defecto) => (
-                        <Form.Check
-                          key={defecto}
-                          type="radio"
-                          id={`defecto-${defecto}`}
-                          name="defectos-radio"
-                          label={defecto}
-                          checked={selectedDefect === defecto}
-                          onChange={() => handleDefectoSelect(defecto)}
-                          className="my-2 ps-4"
-                        />
-                      ))}
-                  </Col>
+              <div className="d-flex flex-wrap gap-2">
+                {defectos.map((defecto) => (
+                  <Button
+                    key={defecto}
+                    variant={
+                      selectedDefect === defecto ? "primary" : "outline-primary"
+                    }
+                    className="flex-grow-1 text-truncate"
+                    onClick={() => handleDefectoSelect(defecto)}
+                    style={{
+                      minWidth: "150px",
+                      height: "60px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      whiteSpace: "normal",
+                    }}
+                  >
+                    {defecto}
+                  </Button>
                 ))}
-              </Row>
+              </div>
             </Card.Body>
           </Card>
 

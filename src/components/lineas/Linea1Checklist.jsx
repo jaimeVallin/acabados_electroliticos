@@ -1,6 +1,17 @@
-import { Card, Form, Row, Col } from "react-bootstrap";
+import { Card, Form, Row, Col, Button } from "react-bootstrap";
 
 const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
+  // Estilo para los botones toggle
+  const toggleStyle = (isActive) => ({
+    minWidth: '120px',
+    height: '40px',
+    whiteSpace: 'nowrap',
+    backgroundColor: isActive ? '#0d6efd' : '#f8f9fa',
+    color: isActive ? 'white' : '#212529',
+    border: '1px solid #ced4da',
+    margin: '2px'
+  });
+
   return (
     <>
       {/* Desengrase de Inmersión */}
@@ -22,13 +33,21 @@ const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Nivel</Form.Label>
-                <Form.Check
-                  type="checkbox"
-                  label="Que tape las piezas"
-                  name="desengraseInmersion.nivel"
-                  checked={formData.desengraseInmersion.nivel}
-                  onChange={handleChange}
-                />
+                <div className="d-flex">
+                  <Button
+                    variant="outline-primary"
+                    style={toggleStyle(formData.desengraseInmersion.nivel)}
+                    onClick={() => handleChange({
+                      target: {
+                        name: "desengraseInmersion.nivel",
+                        type: "checkbox",
+                        checked: !formData.desengraseInmersion.nivel
+                      }
+                    })}
+                  >
+                    {formData.desengraseInmersion.nivel ? '✅ Piezas tapadas' : 'Que tape las piezas'}
+                  </Button>
+                </div>
               </Form.Group>
             </Col>
           </Row>
@@ -65,13 +84,21 @@ const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Nivel</Form.Label>
-                <Form.Check
-                  type="checkbox"
-                  label="Que tape las piezas"
-                  name="desengraseElectrolitico.nivel"
-                  checked={formData.desengraseElectrolitico.nivel}
-                  onChange={handleChange}
-                />
+                <div className="d-flex">
+                  <Button
+                    variant="outline-primary"
+                    style={toggleStyle(formData.desengraseElectrolitico.nivel)}
+                    onClick={() => handleChange({
+                      target: {
+                        name: "desengraseElectrolitico.nivel",
+                        type: "checkbox",
+                        checked: !formData.desengraseElectrolitico.nivel
+                      }
+                    })}
+                  >
+                    {formData.desengraseElectrolitico.nivel ? '✅ Piezas tapadas' : 'Que tape las piezas'}
+                  </Button>
+                </div>
               </Form.Group>
             </Col>
           </Row>
@@ -85,19 +112,20 @@ const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
           <Card.Body>
             <Form.Group className="mb-3">
               <Form.Label>Nivel</Form.Label>
-              <Form.Check
-                type="checkbox"
-                label="Que tape las piezas"
-                checked={formData.enjuagues[index]?.nivel || false}
-                onChange={(e) =>
-                  handleArrayChange(
+              <div className="d-flex">
+                <Button
+                  variant="outline-primary"
+                  style={toggleStyle(formData.enjuagues[index]?.nivel || false)}
+                  onClick={() => handleArrayChange(
                     "enjuagues",
                     index,
                     "nivel",
-                    e.target.checked
-                  )
-                }
-              />
+                    !formData.enjuagues[index]?.nivel
+                  )}
+                >
+                  {(formData.enjuagues[index]?.nivel) ? '✅ Piezas tapadas' : 'Que tape las piezas'}
+                </Button>
+              </div>
             </Form.Group>
           </Card.Body>
         </Card>
@@ -109,14 +137,20 @@ const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
         <Card.Body>
           <Form.Group className="mb-3">
             <Form.Label>Nivel</Form.Label>
-            <Form.Check
-              type="checkbox"
-              label="Que tape las piezas"
-              checked={formData.activados[0]?.nivel || false}
-              onChange={(e) =>
-                handleArrayChange("activados", 0, "nivel", e.target.checked)
-              }
-            />
+            <div className="d-flex">
+              <Button
+                variant="outline-primary"
+                style={toggleStyle(formData.activados[0]?.nivel || false)}
+                onClick={() => handleArrayChange(
+                  "activados",
+                  0,
+                  "nivel",
+                  !formData.activados[0]?.nivel
+                )}
+              >
+                {(formData.activados[0]?.nivel) ? '✅ Piezas tapadas' : 'Que tape las piezas'}
+              </Button>
+            </div>
           </Form.Group>
         </Card.Body>
       </Card>
@@ -162,13 +196,21 @@ const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Nivel</Form.Label>
-                <Form.Check
-                  type="checkbox"
-                  label="Que tape las piezas"
-                  name="galvanizado.nivel"
-                  checked={formData.galvanizado.nivel}
-                  onChange={handleChange}
-                />
+                <div className="d-flex">
+                  <Button
+                    variant="outline-primary"
+                    style={toggleStyle(formData.galvanizado.nivel)}
+                    onClick={() => handleChange({
+                      target: {
+                        name: "galvanizado.nivel",
+                        type: "checkbox",
+                        checked: !formData.galvanizado.nivel
+                      }
+                    })}
+                  >
+                    {formData.galvanizado.nivel ? '✅ Piezas tapadas' : 'Que tape las piezas'}
+                  </Button>
+                </div>
               </Form.Group>
             </Col>
           </Row>
@@ -181,14 +223,20 @@ const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
         <Card.Body>
           <Form.Group className="mb-3">
             <Form.Label>Nivel</Form.Label>
-            <Form.Check
-              type="checkbox"
-              label="Que tape las piezas"
-              checked={formData.preSellos[0]?.nivel || false}
-              onChange={(e) =>
-                handleArrayChange("preSellos", 0, "nivel", e.target.checked)
-              }
-            />
+            <div className="d-flex">
+              <Button
+                variant="outline-primary"
+                style={toggleStyle(formData.preSellos[0]?.nivel || false)}
+                onClick={() => handleArrayChange(
+                  "preSellos",
+                  0,
+                  "nivel",
+                  !formData.preSellos[0]?.nivel
+                )}
+              >
+                {(formData.preSellos[0]?.nivel) ? '✅ Piezas tapadas' : 'Que tape las piezas'}
+              </Button>
+            </div>
           </Form.Group>
         </Card.Body>
       </Card>
@@ -223,13 +271,21 @@ const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Nivel</Form.Label>
-                <Form.Check
-                  type="checkbox"
-                  label="Que tape las piezas"
-                  name="sello.nivel"
-                  checked={formData.sello.nivel}
-                  onChange={handleChange}
-                />
+                <div className="d-flex">
+                  <Button
+                    variant="outline-primary"
+                    style={toggleStyle(formData.sello.nivel)}
+                    onClick={() => handleChange({
+                      target: {
+                        name: "sello.nivel",
+                        type: "checkbox",
+                        checked: !formData.sello.nivel
+                      }
+                    })}
+                  >
+                    {formData.sello.nivel ? '✅ Piezas tapadas' : 'Que tape las piezas'}
+                  </Button>
+                </div>
               </Form.Group>
             </Col>
           </Row>
@@ -252,21 +308,22 @@ const Linea1Checklist = ({ formData, handleChange, handleArrayChange }) => {
         </Card.Body>
       </Card>
 
+      {/* Comentarios */}
       <Card className="mb-4">
-  <Card.Header as="h5">Comentarios</Card.Header>
-  <Card.Body>
-    <Form.Group className="mb-3">
-      <Form.Control
-        as="textarea"
-        rows={3}
-        name="comentarios"
-        value={formData.comentarios}
-        onChange={handleChange}
-        placeholder="Ingrese cualquier comentario adicional"
-      />
-    </Form.Group>
-  </Card.Body>
-</Card>
+        <Card.Header as="h5">Comentarios</Card.Header>
+        <Card.Body>
+          <Form.Group className="mb-3">
+            <Form.Control
+              as="textarea"
+              rows={3}
+              name="comentarios"
+              value={formData.comentarios}
+              onChange={handleChange}
+              placeholder="Ingrese cualquier comentario adicional"
+            />
+          </Form.Group>
+        </Card.Body>
+      </Card>
     </>
   );
 };
