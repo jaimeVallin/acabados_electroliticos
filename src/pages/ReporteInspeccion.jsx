@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Alert, Button, Card, Form, Image, Row, Col } from "react-bootstrap";
 import { supabase } from "../supabase/client";
 import logo from "../assets/logo.png";
+import * as XLSX from 'xlsx';
 
 const ReporteInspeccion = () => {
   const navigate = useNavigate();
@@ -32,22 +33,31 @@ const ReporteInspeccion = () => {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedDefect, setSelectedDefect] = useState(null);
+  const [historicoReportes, setHistoricoReportes] = useState(() => {
+    const saved = localStorage.getItem('reportesInspeccion');
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  // Lista de defectos
+  // Lista de defectos actualizada para coincidir exactamente con la imagen
   const defectos = [
-    "Burbuja o Desprendimiento",
-    "Mancha blanca",
-    "Mancha negra",
-    "Mancha Tomasol",
-    "Escurrimiento",
-    "Aspero",
-    "Quemadura",
-    "Opaco",
-    "Punto de Contacto",
-    "Color Desigual",
-    "Oxido",
-    "Otro",
+    "DIVISIDAD O DESPRENDIMIENTO",
+    "MANCHA BLANCA",
+    "MANCHA NEGRA",
+    "MANCHA TORNASOL",
+    "ESCURRIMIENTO",
+    "ASPERO",
+    "QUEÑADURA",
+    "OPACO",
+    "PUNTO DE CONTACTO",
+    "COLOR DESIGUAL",
+    "OXIDO",
+    "OTRO",
   ];
+
+  // Actualizar localStorage cuando cambie historicoReportes
+  useEffect(() => {
+    localStorage.setItem('reportesInspeccion', JSON.stringify(historicoReportes));
+  }, [historicoReportes]);
 
   // Calcula total inspeccionado
   useEffect(() => {
@@ -106,11 +116,9 @@ const ReporteInspeccion = () => {
     }
   };
 
-  // Modificado para mantener los valores existentes
   const handleDefectoSelect = (defecto) => {
     setSelectedDefect(defecto);
 
-    // Si el defecto ya existe en el estado, no lo sobrescribimos
     if (!formData.defectos[defecto]) {
       setFormData((prev) => ({
         ...prev,
@@ -154,18 +162,145 @@ const ReporteInspeccion = () => {
         usuario: (await supabase.auth.getSession()).data.session?.user.email,
       };
 
-      const { error } = await supabase
-        .from("reportes_inspeccion")
-        .insert([dataToSend]);
-
-      if (error) throw error;
-
+      // Guardar en localStorage
+      setHistoricoReportes(prev => [...prev, dataToSend]);
+      
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
+      
+      // Resetear el formulario
+      setFormData({
+        numeroEntrada: "",
+        numerosPieza: [{ numero: "", cantidad: "" }],
+        defectos: {},
+        totalOK: 0,
+        comentarios: "",
+      });
+      setSelectedDefect(null);
+      
     } catch (err) {
       setError(err.message || "Error al guardar el reporte");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const enviarASupabase = async () => {
+    try {
+      setLoading(true);
+      
+      if (historicoReportes.length === 0) {
+        throw new Error("No hay reportes para enviar");
+      }
+
+      const { error } = await supabase
+        .from("reportes_inspeccion")
+        .insert(historicoReportes);
+
+      if (error) throw error;
+
+      // Limpiar después de enviar
+      localStorage.removeItem('reportesInspeccion');
+      setHistoricoReportes([]);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+      
+    } catch (err) {
+      setError(err.message || "Error al enviar reportes a Supabase");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const prepararDatosParaExcel = () => {
+    // Encabezados exactos como en la imagen
+    const encabezados = [
+      "No.",
+      "DE ENTRADA",
+      "DIFÍCIL AYO DE SPRENDIMIENTO",
+      "MANCHA BLANCA",
+      "MANCHA NEGRA",
+      "MANCHA TORNASOL",
+      "ESCURRIMIENTO",
+      "ASPERO",
+      "QUEÑADURA",
+      "OPACO",
+      "PUNTO DE CONTACTO",
+      "COLOR DESIGUAL",
+      "OXIDO",
+      "OTRO",
+      "CANTIDAD NO",
+      "CANTIDAD OK",
+      "TOTAL ISFECCIONADAS",
+      "HORA DE SALIDA",
+      "REÁLEO",
+      "PERIODO",
+      "RESERVACIONES"
+    ];
+
+    // Datos de cada reporte
+    const filas = historicoReportes.map((reporte, index) => {
+      return [
+        index + 1, // No.
+        reporte.numeroEntrada, // DE ENTRADA
+        "", // DIFÍCIL AYO DE SPRENDIMIENTO (vacío)
+        reporte.defectos["MANCHA BLANCA"] || "0",
+        reporte.defectos["MANCHA NEGRA"] || "0",
+        reporte.defectos["MANCHA TORNASOL"] || "0",
+        reporte.defectos["ESCURRIMIENTO"] || "0",
+        reporte.defectos["ASPERO"] || "0",
+        reporte.defectos["QUEÑADURA"] || "0",
+        reporte.defectos["OPACO"] || "0",
+        reporte.defectos["PUNTO DE CONTACTO"] || "0",
+        reporte.defectos["COLOR DESIGUAL"] || "0",
+        reporte.defectos["OXIDO"] || "0",
+        reporte.defectos["OTRO"] || "0",
+        // CANTIDAD NO (suma de defectos)
+        Object.values(reporte.defectos).reduce((sum, val) => {
+          if (Array.isArray(val)) return sum + val.reduce((s, v) => s + (parseInt(v) || 0), 0);
+          return sum + (parseInt(val) || 0);
+        }, 0),
+        reporte.totalOK,
+        reporte.totalInspeccionadas,
+        new Date(reporte.fecha).toLocaleTimeString('es-MX'),
+        reporte.usuario.split('@')[0], // REÁLEO
+        "", // PERIODO (vacío)
+        reporte.comentarios // RESERVACIONES
+      ];
+    });
+
+    return [encabezados, ...filas];
+  };
+
+  const exportarAExcel = () => {
+    if (historicoReportes.length === 0) {
+      setError("No hay reportes para exportar");
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const datos = prepararDatosParaExcel();
+    const ws = XLSX.utils.aoa_to_sheet(datos);
+    
+    // Ajustar anchos de columna
+    if (!ws["!cols"]) ws["!cols"] = [];
+    datos[0].forEach((_, i) => {
+      ws["!cols"][i] = { width: 15 };
+    });
+    
+    // Combinar celdas para el título (similar a la imagen)
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 20 } } // Combina toda la primera fila
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte Inspección");
+    XLSX.writeFile(wb, `Reporte_Inspeccion_Linea3_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const limpiarReportes = () => {
+    if (window.confirm("¿Estás seguro de querer eliminar todos los reportes guardados localmente?")) {
+      localStorage.removeItem('reportesInspeccion');
+      setHistoricoReportes([]);
     }
   };
 
@@ -175,13 +310,18 @@ const ReporteInspeccion = () => {
         <div className="text-center">
           <Image src={logo} alt="Logo" fluid style={{ maxHeight: "80px" }} />
           <h2 className="mt-2">Reporte de Inspección</h2>
+          <div className="d-flex justify-content-center gap-2 mt-2">
+            <span className="badge bg-primary">
+              Reportes guardados: {historicoReportes.length}
+            </span>
+          </div>
         </div>
       </Card.Header>
 
       <Card.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         {success && (
-          <Alert variant="success">Reporte guardado correctamente!</Alert>
+          <Alert variant="success">Operación realizada correctamente!</Alert>
         )}
 
         <Form onSubmit={handleSubmit}>
@@ -271,8 +411,7 @@ const ReporteInspeccion = () => {
             </Card.Body>
           </Card>
 
-          {/* Sección Defectos (radio buttons) */}
-          {/* Sección Defectos (ahora como botones grandes) */}
+          {/* Sección Defectos */}
           <Card className="mb-4 shadow-sm">
             <Card.Body>
               <h4 className="mb-3 text-primary">
@@ -396,6 +535,35 @@ const ReporteInspeccion = () => {
             disabled={loading}
           >
             {loading ? "Guardando..." : "Guardar Reporte"}
+          </Button>
+
+          <div className="d-flex gap-2 mt-3">
+            <Button 
+              variant="success" 
+              onClick={exportarAExcel}
+              className="flex-grow-1 py-3"
+              disabled={historicoReportes.length === 0}
+            >
+              Exportar a Excel ({historicoReportes.length})
+            </Button>
+
+            <Button 
+              variant="warning" 
+              onClick={enviarASupabase}
+              className="flex-grow-1 py-3"
+              disabled={historicoReportes.length === 0 || loading}
+            >
+              {loading ? "Enviando..." : "Enviar a Supabase"}
+            </Button>
+          </div>
+
+          <Button 
+            variant="danger" 
+            onClick={limpiarReportes}
+            className="w-100 py-2 mt-2"
+            disabled={historicoReportes.length === 0}
+          >
+            Limpiar Reportes Locales
           </Button>
         </Form>
       </Card.Body>
