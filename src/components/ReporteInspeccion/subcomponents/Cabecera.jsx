@@ -5,7 +5,7 @@ const Cabecera = ({ contadorReportes, tiempoInactivo, guardadoAutomatico, histor
   return (
     <Card.Header className="bg-transparent border-0">
       <div className="text-center">
-        <Image src={logo} alt="Logo" fluid style={{ maxHeight: "80px" }} />
+        <Image src={logo} alt="Logo" fluid style={{ maxHeight: "20%" }} />
         <h2 className="mt-2">Reporte de Inspección</h2>
         <div className="d-flex justify-content-center gap-3 mt-2">
           <span className="badge bg-primary">

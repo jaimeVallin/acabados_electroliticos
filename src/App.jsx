@@ -9,8 +9,8 @@ import PasswordReset from "./pages/PasswordReset";
 import Register from "./pages/Register";
 import UpdatePassword from "./pages/UpdatePassword";
 import CheckListTinas from './pages/CheckListTinas';
-// import ReporteInspeccion from './pages/ReporteInspeccion';
-import ReporteInspeccion from './components/ReporteInspeccion/Reporte';
+import ReporteInspeccion from './pages/ReporteInspeccion';
+// import ReporteInspeccion from './components/ReporteInspeccion/Reporte';
 import { supabase } from './supabase/client';
 
 const App = () => {
@@ -55,7 +55,7 @@ const App = () => {
             <Route path="/passwordreset" element={<PasswordReset />} />
             <Route path="/update-password" element={<UpdatePassword />} />
             
-            {/* Duplicados eliminados (ya están en rutas protegidas) */}
+            
           </Routes>
         </div>
       </Container>

@@ -5,69 +5,90 @@ import Navbar from "react-bootstrap/Navbar";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 
-
 const NavBar = () => {
   const { auth, signOut, user } = useAuth();
 
-  // Función para extraer el nombre antes del @
+  // Extrae el nombre de usuario del email (parte antes del @)
   const getUsername = () => {
     if (!user?.email) return "Usuario";
     return user.email.split("@")[0];
   };
 
+  // Maneja el cierre de sesión
   const handleLogout = async (e) => {
     e.preventDefault();
     try {
-      const { error } = await signOut();
-      console.log(error);
+      await signOut();
     } catch (error) {
-      console.log(error);
+      console.error("Error al cerrar sesión:", error);
     }
   };
 
   return (
-    <Navbar collapseOnSelect expand="lg" bg="dark" variant="dark">
-      <Container>
-        <Navbar.Toggle aria-controls="responsive-navbar-nav" />
-        <Navbar.Collapse id="responsive-navbar-nav">
+    <Navbar collapseOnSelect expand="lg" bg="dark" variant="dark" className="shadow">
+      <Container fluid>
+        <Navbar.Brand as={Link} to="/" className="me-4">
+          {/* Puedes agregar tu logo aquí */}
+          <span className="fw-bold">Sistema AEA</span>
+        </Navbar.Brand>
+        
+        <Navbar.Toggle aria-controls="main-navbar" />
+        
+        <Navbar.Collapse id="main-navbar">
+          {/* Menú principal */}
           <Nav className="me-auto">
-            {!auth && (
+            {auth ? (
+              // Menú para usuarios autenticados
               <>
-                <Nav.Link as={Link} to="/login">
+                <Nav.Link as={Link} to="/checklist-tinas" className="mx-2">
+                  <Button variant="outline-light" size="sm" className="px-3">
+                    <i className="bi bi-clipboard-check me-2"></i>
+                    Checklist Tinas
+                  </Button>
+                </Nav.Link>
+                <Nav.Link as={Link} to="/reporte-inspeccion" className="mx-2">
+                  <Button variant="outline-light" size="sm" className="px-3">
+                    <i className="bi bi-file-earmark-text me-2"></i>
+                    Reportes
+                  </Button>
+                </Nav.Link>
+              </>
+            ) : (
+              // Menú para usuarios no autenticados
+              <Nav.Link as={Link} to="/login" className="mx-2">
+                <Button variant="outline-primary" size="sm">
                   Iniciar Sesión
-                </Nav.Link>
-                <Nav.Link as={Link} to="/register">
-                  Registrarse
-                </Nav.Link>
-              </>
-            )}
-            {auth && (
-              <>
-                <Nav.Link as={Link} to="/checklist-tinas">
-                  <Button variant="outline-light" size="sm">
-                    Checklist de Tinas
-                  </Button>
-                </Nav.Link>
-                <Nav.Link as={Link} to="/reporte-inspeccion">
-                  <Button variant="outline-light" size="sm">
-                    Reporte de Inspección
-                  </Button>
-                </Nav.Link>
-              </>
-            )}
-          </Nav>
-          <Nav>
-            {auth && (
-              <>
-                <Navbar.Text className="me-3">
-                  <strong>{getUsername()}</strong>
-                </Navbar.Text>
-                <Button variant="outline-danger" onClick={handleLogout}>
-                  Cerrar Sesión
                 </Button>
-              </>
+              </Nav.Link>
+              /*
+              Opción de registro comentada según requerimiento
+              <Nav.Link as={Link} to="/register" className="mx-2">
+                <Button variant="outline-secondary" size="sm">
+                  Registrarse
+                </Button>
+              </Nav.Link>
+              */
             )}
           </Nav>
+
+          {/* Sección de usuario */}
+          {auth && (
+            <Nav className="align-items-center">
+              <Navbar.Text className="me-3 text-light">
+                <i className="bi bi-person-circle me-2"></i>
+                <span className="fw-semibold">{getUsername()}</span>
+              </Navbar.Text>
+              <Button 
+                variant="outline-danger" 
+                onClick={handleLogout}
+                size="sm"
+                className="px-3"
+              >
+                <i className="bi bi-box-arrow-right me-2"></i>
+                Salir
+              </Button>
+            </Nav>
+          )}
         </Navbar.Collapse>
       </Container>
     </Navbar>
