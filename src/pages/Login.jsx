@@ -86,9 +86,9 @@ const Login = () => {
                   }
                 }}
               />
-              <Form.Text className="text-muted">
+              {/* <Form.Text className="text-muted">
                 Se agregará automáticamente @aea.com
-              </Form.Text>
+              </Form.Text> */}
             </Form.Group>
 
             <Form.Group className="mb-4" controlId="formPassword">
@@ -138,11 +138,11 @@ const Login = () => {
             </div>
           </Form>
 
-          <div className="text-center mt-4 pt-3 border-top">
+          {/* <div className="text-center mt-4 pt-3 border-top">
             <Link to="/passwordreset" className="text-decoration-none">
               ¿Olvidó su contraseña?
             </Link>
-          </div>
+          </div> */}
 
           {/*
           <div className="text-center mt-3">
