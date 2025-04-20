@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from '../supabase/client';
 import {
   Alert,
   Button,
@@ -7,17 +8,16 @@ import {
   Form,
   Row,
   Col,
-  Spinner,
   Badge,
   Image,
   Table,
 } from "react-bootstrap";
-import { supabase } from "../supabase/client";
 import * as XLSX from "xlsx";
 import logo from "../assets/logo.png";
 
 const ReporteInspeccion = () => {
   const navigate = useNavigate();
+  // const supabase = supabase();
   const TIEMPO_AUTOGUARDADO = 60;
 
   const [numeroEntrada, setNumeroEntrada] = useState(() => {
@@ -26,12 +26,15 @@ const ReporteInspeccion = () => {
   });
 
   const [formData, setFormData] = useState({
-    numerosPieza: [{ numero: "", cantidad: "" }],
+    numerosPieza: [{ numero: "", cantidad: "", metadata: null }],
     defectos: {},
     totalOK: 0,
     comentarios: "",
   });
 
+  const [productos, setProductos] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [busquedaActiva, setBusquedaActiva] = useState(false);
   const [totalInspeccionadas, setTotalInspeccionadas] = useState(0);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -119,9 +122,57 @@ const ReporteInspeccion = () => {
     return () => clearInterval(intervalo);
   }, [formData.numerosPieza, guardadoAutomatico]);
 
+  useEffect(() => {
+    const buscarProductos = async () => {
+      if (!busquedaActiva || busqueda.length < 2) {
+        setProductos([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('productos')
+          .select('*')
+          .or(`cliente_id.ilike.%${busqueda}%,producto_id.ilike.%${busqueda}%,combinado_id.ilike.%${busqueda}%,descripcion.ilike.%${busqueda}%`)
+          .limit(10);
+
+        if (error) throw error;
+        setProductos(data || []);
+      } catch (error) {
+        console.error('Error buscando productos:', error);
+        setProductos([]);
+      }
+    };
+
+    const debounce = setTimeout(buscarProductos, 300);
+    return () => clearTimeout(debounce);
+  }, [busqueda, busquedaActiva, supabase]);
+
   const resetearTemporizador = () => {
     setTiempoInactivo(0);
     setGuardadoAutomatico(false);
+  };
+
+  const handleSeleccionProducto = (index, value) => {
+    const productoSeleccionado = productos.find(p => p.producto_id === value);
+    
+    if (productoSeleccionado) {
+      const nuevosNumerosPieza = [...formData.numerosPieza];
+      nuevosNumerosPieza[index] = {
+        ...nuevosNumerosPieza[index],
+        numero: productoSeleccionado.producto_id,
+        metadata: {
+          cliente_id: productoSeleccionado.cliente_id,
+          combinado_id: productoSeleccionado.combinado_id,
+          descripcion: productoSeleccionado.descripcion
+        }
+      };
+      
+      setFormData(prev => ({
+        ...prev,
+        numerosPieza: nuevosNumerosPieza
+      }));
+    }
   };
 
   const handleChange = (e) => {
@@ -133,8 +184,15 @@ const ReporteInspeccion = () => {
   const handlePiezaChange = (index, field, value) => {
     resetearTemporizador();
     const newNumerosPieza = [...formData.numerosPieza];
-    newNumerosPieza[index][field] = value;
-    setFormData((prev) => ({ ...prev, numerosPieza: newNumerosPieza }));
+    
+    if (field === 'numero') {
+      handleSeleccionProducto(index, value);
+      newNumerosPieza[index][field] = value;
+    } else {
+      newNumerosPieza[index][field] = value;
+    }
+    
+    setFormData(prev => ({ ...prev, numerosPieza: newNumerosPieza }));
   };
 
   const agregarPieza = () => {
@@ -142,7 +200,7 @@ const ReporteInspeccion = () => {
     if (formData.numerosPieza.length < 2) {
       setFormData((prev) => ({
         ...prev,
-        numerosPieza: [...prev.numerosPieza, { numero: "", cantidad: "" }],
+        numerosPieza: [...prev.numerosPieza, { numero: "", cantidad: "", metadata: null }],
         defectos: Object.fromEntries(
           Object.entries(prev.defectos).map(([key, val]) => [
             key,
@@ -155,6 +213,22 @@ const ReporteInspeccion = () => {
         ),
       }));
     }
+  };
+
+  const eliminarPieza = (index) => {
+    resetearTemporizador();
+    const nuevasPiezas = formData.numerosPieza.filter((_, i) => i !== index);
+    
+    setFormData(prev => ({
+      ...prev,
+      numerosPieza: nuevasPiezas,
+      defectos: Object.fromEntries(
+        Object.entries(prev.defectos).map(([key, val]) => [
+          key,
+          Array.isArray(val) ? val.filter((_, i) => i !== index) : val
+        ])
+      )
+    }));
   };
 
   const handleDefectoSelect = (defecto) => {
@@ -215,7 +289,7 @@ const ReporteInspeccion = () => {
       setTimeout(() => setSuccess(false), 3000);
 
       setFormData({
-        numerosPieza: [{ numero: "", cantidad: "" }],
+        numerosPieza: [{ numero: "", cantidad: "", metadata: null }],
         defectos: {},
         totalOK: 0,
         comentarios: "",
@@ -246,40 +320,36 @@ const ReporteInspeccion = () => {
   const prepararDatosParaExcel = () => {
     const encabezados = [
       "No.",
-      "NÚMERO DE ENTRADA",
-      "DEFECTO",
-      "MANCHA NEGRA",
-      "TORNA SOL",
-      "ESCURRIMIENTO",
-      "ASPERO",
-      "QUEMADURA",
-      "OPACO",
-      "PUNTO DE CONTACTO",
-      "COLOR DESIGUAL",
-      "OXIDO",
-      "OTRO",
-      "CANTIDAD NOK",
-      "CANTIDAD OK",
-      "TOTAL INSPECCIONADAS",
-      "HORA DE SALIDA",
-      "FEPI-05",
+      "Número de Entrada",
+      "Cliente ID",
+      "Producto ID",
+      "Descripción",
+      "Cantidad",
+      "Defectos Detectados",
+      "Total OK",
+      "Total Inspeccionadas",
+      "Fecha",
+      "Usuario"
     ];
 
-    const filas = historicoReportes.map((reporte, index) => [
-      index + 1,
-      reporte.numeroEntrada,
-      "",
-      ...defectos.map((defecto) => reporte.defectos[defecto] || "0"),
-      Object.values(reporte.defectos).reduce((sum, val) => {
-        if (Array.isArray(val))
-          return sum + val.reduce((s, v) => s + (parseInt(v) || 0), 0);
-        return sum + (parseInt(val) || 0);
-      }, 0),
-      reporte.totalOK,
-      reporte.totalInspeccionadas,
-      new Date(reporte.fecha).toLocaleTimeString("es-MX"),
-      "1",
-    ]);
+    const filas = historicoReportes.flatMap((reporte, index) => 
+      reporte.numerosPieza.map((pieza) => [
+        index + 1,
+        reporte.numeroEntrada,
+        pieza.metadata?.cliente_id || "N/A",
+        pieza.numero,
+        pieza.metadata?.descripcion || "N/A",
+        pieza.cantidad,
+        Object.entries(reporte.defectos)
+          .filter(([_, val]) => val > 0)
+          .map(([defecto]) => defecto)
+          .join(", "),
+        reporte.totalOK,
+        reporte.totalInspeccionadas,
+        new Date(reporte.fecha).toLocaleString("es-MX"),
+        reporte.usuario
+      ])
+    );
 
     return [encabezados, ...filas];
   };
@@ -293,7 +363,7 @@ const ReporteInspeccion = () => {
     const wb = XLSX.utils.book_new();
     const datos = prepararDatosParaExcel();
 
-    datos.unshift([], ["Reporte de Inspección 1 Línea 3"], []);
+    datos.unshift([], ["Reporte de Inspección - Línea 3"], []);
 
     const ws = XLSX.utils.aoa_to_sheet(datos);
 
@@ -301,21 +371,14 @@ const ReporteInspeccion = () => {
       { width: 5 },
       { width: 15 },
       { width: 15 },
-      { width: 12 },
-      { width: 12 },
-      { width: 12 },
+      { width: 15 },
+      { width: 25 },
       { width: 10 },
-      { width: 10 },
+      { width: 30 },
       { width: 10 },
       { width: 15 },
-      { width: 15 },
-      { width: 10 },
-      { width: 10 },
-      { width: 12 },
-      { width: 12 },
-      { width: 15 },
-      { width: 12 },
-      { width: 10 },
+      { width: 20 },
+      { width: 25 }
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "Reporte Inspección");
@@ -326,11 +389,7 @@ const ReporteInspeccion = () => {
   };
 
   const limpiarReportes = () => {
-    if (
-      window.confirm(
-        "¿Estás seguro de querer eliminar todos los reportes guardados localmente?"
-      )
-    ) {
+    if (window.confirm("¿Estás seguro de querer eliminar todos los reportes guardados localmente?")) {
       localStorage.removeItem("reportesInspeccion");
       localStorage.setItem("numeroEntrada", "1");
       setHistoricoReportes([]);
@@ -343,9 +402,7 @@ const ReporteInspeccion = () => {
   const formatoTiempo = (segundos) => {
     const mins = Math.floor(segundos / 60);
     const secs = segundos % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -354,36 +411,18 @@ const ReporteInspeccion = () => {
         <div className="text-center">
           <Image src={logo} alt="Logo" fluid style={{ maxHeight: "80px" }} />
           <h1 className="text-primary mb-3">Reporte de Inspección</h1>
-          <div
-            className={`h5 ${
-              guardadoAutomatico ? "text-success" : "text-warning"
-            }`}
-          >
-            <i
-              className={`bi ${
-                guardadoAutomatico ? "bi-check-circle" : "bi-clock-history"
-              } me-2`}
-            />
+          <div className={`h5 ${guardadoAutomatico ? "text-success" : "text-warning"}`}>
+            <i className={`bi ${guardadoAutomatico ? "bi-check-circle" : "bi-clock-history"} me-2`} />
             {guardadoAutomatico
               ? "Datos autoguardados"
-              : `Autoguardado en: ${formatoTiempo(
-                  TIEMPO_AUTOGUARDADO - tiempoInactivo
-                )}`}
+              : `Autoguardado en: ${formatoTiempo(TIEMPO_AUTOGUARDADO - tiempoInactivo)}`}
           </div>
         </div>
       </Card.Header>
 
       <Card.Body className="p-4">
-        {error && (
-          <Alert variant="danger" dismissible onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-        {success && (
-          <Alert variant="success" dismissible>
-            Operación exitosa!
-          </Alert>
-        )}
+        {error && <Alert variant="danger" dismissible onClose={() => setError(null)}>{error}</Alert>}
+        {success && <Alert variant="success" dismissible>Operación exitosa!</Alert>}
 
         <Form onSubmit={handleSubmit}>
           <Card className="mb-4">
@@ -412,43 +451,84 @@ const ReporteInspeccion = () => {
                 Piezas Inspeccionadas
               </h4>
               {formData.numerosPieza.map((pieza, index) => (
-                <Row key={index} className="mb-3 g-2">
-                  <Col md={5}>
-                    <Form.Control
-                      type="text"
-                      placeholder={`Número pieza ${index + 1}`}
-                      value={pieza.numero}
-                      onChange={(e) =>
-                        handlePiezaChange(index, "numero", e.target.value)
-                      }
-                      required
-                    />
-                  </Col>
-                  <Col md={5}>
-                    <Form.Control
-                      type="number"
-                      placeholder="Cantidad"
-                      value={pieza.cantidad}
-                      onChange={(e) =>
-                        handlePiezaChange(index, "cantidad", e.target.value)
-                      }
-                      min="1"
-                      required
-                    />
-                  </Col>
-                  {index === 0 && formData.numerosPieza.length < 2 && (
-                    <Col md={2}>
-                      <Button
-                        variant="outline-primary"
-                        onClick={agregarPieza}
-                        className="w-100"
-                      >
-                        <i className="bi bi-plus-lg me-2" />
-                        Pieza
-                      </Button>
+                <div key={index} className="mb-4">
+                  <Row className="g-2">
+                    <Col md={5}>
+                      <Form.Control
+                        type="text"
+                        placeholder={`Buscar producto (ID o descripción)`}
+                        value={pieza.numero}
+                        onChange={(e) => {
+                          setBusqueda(e.target.value);
+                          handlePiezaChange(index, "numero", e.target.value);
+                        }}
+                        onFocus={() => setBusquedaActiva(true)}
+                        onBlur={() => setTimeout(() => setBusquedaActiva(false), 200)}
+                        list={`productos-list-${index}`}
+                        autoComplete="off"
+                        required
+                      />
+                      <datalist id={`productos-list-${index}`}>
+                        {productos.map((producto) => (
+                          <option 
+                            key={producto.id} 
+                            value={producto.producto_id}
+                          >
+                            {producto.cliente_id} - {producto.descripcion}
+                          </option>
+                        ))}
+                      </datalist>
+                      
+                      {pieza.metadata && (
+                        <div className="mt-2">
+                          <Badge bg="info" className="me-2">
+                            Cliente: {pieza.metadata.cliente_id}
+                          </Badge>
+                          <Badge bg="secondary">
+                            Descripción: {pieza.metadata.descripcion}
+                          </Badge>
+                        </div>
+                      )}
                     </Col>
+
+                    <Col md={5}>
+                      <Form.Control
+                        type="number"
+                        placeholder="Cantidad"
+                        value={pieza.cantidad}
+                        onChange={(e) =>
+                          handlePiezaChange(index, "cantidad", e.target.value)
+                        }
+                        min="1"
+                        required
+                      />
+                    </Col>
+
+                    {index === 0 && formData.numerosPieza.length < 2 && (
+                      <Col md={2}>
+                        <Button
+                          variant="outline-primary"
+                          onClick={agregarPieza}
+                          className="w-100"
+                        >
+                          <i className="bi bi-plus-lg me-2" />
+                          Pieza
+                        </Button>
+                      </Col>
+                    )}
+                  </Row>
+                  
+                  {index > 0 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-danger mt-2"
+                      onClick={() => eliminarPieza(index)}
+                    >
+                      <i className="bi bi-trash" /> Eliminar pieza
+                    </Button>
                   )}
-                </Row>
+                </div>
               ))}
             </Card.Body>
           </Card>
@@ -504,23 +584,28 @@ const ReporteInspeccion = () => {
                           min="0"
                         />
                       </Form.Group>
-                      <Form.Group controlId="comentarios">
-                        <Form.Label>Comentarios</Form.Label>
-                        <Form.Control
-                          as="textarea"
-                          name="comentarios"
-                          value={formData.comentarios}
-                          onChange={handleChange}
-                          placeholder="Registre observaciones relevantes..."
-                          style={{ minHeight: "80px" }}
-                        />
-                      </Form.Group>
                     </Col>
                   ))}
                 </Row>
               </Card.Body>
             </Card>
           )}
+
+          <Card className="mb-4">
+            <Card.Body>
+              <Form.Group controlId="comentarios">
+                <Form.Label>Comentarios</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  name="comentarios"
+                  value={formData.comentarios}
+                  onChange={handleChange}
+                  placeholder="Registre observaciones relevantes..."
+                  style={{ minHeight: "100px" }}
+                />
+              </Form.Group>
+            </Card.Body>
+          </Card>
 
           <Row className="g-3 mb-4">
             <Col md={4}>
@@ -590,10 +675,7 @@ const ReporteInspeccion = () => {
                 </Row>
               </Card.Header>
               <Card.Body className="p-0">
-                <div
-                  className="table-responsive"
-                  style={{ maxHeight: "400px" }}
-                >
+                <div className="table-responsive" style={{ maxHeight: "400px" }}>
                   <Table striped hover className="mb-0">
                     <thead className="sticky-top bg-light">
                       <tr>
@@ -608,9 +690,7 @@ const ReporteInspeccion = () => {
                         <tr key={index}>
                           <td className="fw-bold">{reporte.numeroEntrada}</td>
                           <td>
-                            {new Date(reporte.fecha).toLocaleDateString(
-                              "es-MX"
-                            )}
+                            {new Date(reporte.fecha).toLocaleDateString("es-MX")}
                           </td>
                           <td>
                             <Badge bg="success" className="fs-6">
