@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from '../supabase/client';
+import { supabase } from "../supabase/client";
 import {
   Alert,
   Button,
@@ -17,8 +17,10 @@ import logo from "../assets/logo.png";
 
 const ReporteInspeccion = () => {
   const navigate = useNavigate();
-  // const supabase = supabase();
   const TIEMPO_AUTOGUARDADO = 60;
+  const hayInternet = () => {
+    return window.navigator.onLine;
+  };
 
   const [numeroEntrada, setNumeroEntrada] = useState(() => {
     const saved = localStorage.getItem("numeroEntrada");
@@ -129,18 +131,33 @@ const ReporteInspeccion = () => {
         return;
       }
 
-      try {
-        const { data, error } = await supabase
-          .from('productos')
-          .select('*')
-          .or(`cliente_id.ilike.%${busqueda}%,producto_id.ilike.%${busqueda}%,combinado_id.ilike.%${busqueda}%,descripcion.ilike.%${busqueda}%`)
-          .limit(10);
+      const claveLocal = `productos_cache_${busqueda}`;
 
-        if (error) throw error;
-        setProductos(data || []);
-      } catch (error) {
-        console.error('Error buscando productos:', error);
-        setProductos([]);
+      if (hayInternet()) {
+        try {
+          const { data, error } = await supabase
+            .from("productos")
+            .select("*")
+            .or(
+              `cliente_id.ilike.%${busqueda}%,producto_id.ilike.%${busqueda}%,combinado_id.ilike.%${busqueda}%,descripcion.ilike.%${busqueda}%`
+            )
+            .limit(10);
+
+          if (error) throw error;
+
+          localStorage.setItem(claveLocal, JSON.stringify(data));
+          setProductos(data || []);
+        } catch (error) {
+          console.error("Error buscando productos en línea:", error);
+          setProductos([]);
+        }
+      } else {
+        const dataLocal = localStorage.getItem(claveLocal);
+        if (dataLocal) {
+          setProductos(JSON.parse(dataLocal));
+        } else {
+          setProductos([]);
+        }
       }
     };
 
@@ -154,8 +171,10 @@ const ReporteInspeccion = () => {
   };
 
   const handleSeleccionProducto = (index, value) => {
-    const productoSeleccionado = productos.find(p => p.producto_id === value);
-    
+    const productoSeleccionado = productos.find((p) => p.producto_id === value);
+
+    console.log("Producto seleccionado:", productoSeleccionado); // Debug 1
+
     if (productoSeleccionado) {
       const nuevosNumerosPieza = [...formData.numerosPieza];
       nuevosNumerosPieza[index] = {
@@ -164,13 +183,17 @@ const ReporteInspeccion = () => {
         metadata: {
           cliente_id: productoSeleccionado.cliente_id,
           combinado_id: productoSeleccionado.combinado_id,
-          descripcion: productoSeleccionado.descripcion
-        }
+          descripcion: productoSeleccionado.descripcion,
+        },
+    
       };
       
-      setFormData(prev => ({
+
+      console.log("Nuevos datos de pieza:", nuevosNumerosPieza[index]); // Debug 2
+
+      setFormData((prev) => ({
         ...prev,
-        numerosPieza: nuevosNumerosPieza
+        numerosPieza: nuevosNumerosPieza,
       }));
     }
   };
@@ -184,15 +207,15 @@ const ReporteInspeccion = () => {
   const handlePiezaChange = (index, field, value) => {
     resetearTemporizador();
     const newNumerosPieza = [...formData.numerosPieza];
-    
-    if (field === 'numero') {
+
+    if (field === "numero") {
       handleSeleccionProducto(index, value);
       newNumerosPieza[index][field] = value;
     } else {
       newNumerosPieza[index][field] = value;
     }
-    
-    setFormData(prev => ({ ...prev, numerosPieza: newNumerosPieza }));
+
+    setFormData((prev) => ({ ...prev, numerosPieza: newNumerosPieza }));
   };
 
   const agregarPieza = () => {
@@ -200,7 +223,10 @@ const ReporteInspeccion = () => {
     if (formData.numerosPieza.length < 2) {
       setFormData((prev) => ({
         ...prev,
-        numerosPieza: [...prev.numerosPieza, { numero: "", cantidad: "", metadata: null }],
+        numerosPieza: [
+          ...prev.numerosPieza,
+          { numero: "", cantidad: "", metadata: null },
+        ],
         defectos: Object.fromEntries(
           Object.entries(prev.defectos).map(([key, val]) => [
             key,
@@ -218,16 +244,16 @@ const ReporteInspeccion = () => {
   const eliminarPieza = (index) => {
     resetearTemporizador();
     const nuevasPiezas = formData.numerosPieza.filter((_, i) => i !== index);
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
       numerosPieza: nuevasPiezas,
       defectos: Object.fromEntries(
         Object.entries(prev.defectos).map(([key, val]) => [
           key,
-          Array.isArray(val) ? val.filter((_, i) => i !== index) : val
+          Array.isArray(val) ? val.filter((_, i) => i !== index) : val,
         ])
-      )
+      ),
     }));
   };
 
@@ -329,10 +355,10 @@ const ReporteInspeccion = () => {
       "Total OK",
       "Total Inspeccionadas",
       "Fecha",
-      "Usuario"
+      "Usuario",
     ];
 
-    const filas = historicoReportes.flatMap((reporte, index) => 
+    const filas = historicoReportes.flatMap((reporte, index) =>
       reporte.numerosPieza.map((pieza) => [
         index + 1,
         reporte.numeroEntrada,
@@ -347,7 +373,7 @@ const ReporteInspeccion = () => {
         reporte.totalOK,
         reporte.totalInspeccionadas,
         new Date(reporte.fecha).toLocaleString("es-MX"),
-        reporte.usuario
+        reporte.usuario,
       ])
     );
 
@@ -378,7 +404,7 @@ const ReporteInspeccion = () => {
       { width: 10 },
       { width: 15 },
       { width: 20 },
-      { width: 25 }
+      { width: 25 },
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "Reporte Inspección");
@@ -389,7 +415,11 @@ const ReporteInspeccion = () => {
   };
 
   const limpiarReportes = () => {
-    if (window.confirm("¿Estás seguro de querer eliminar todos los reportes guardados localmente?")) {
+    if (
+      window.confirm(
+        "¿Estás seguro de querer eliminar todos los reportes guardados localmente?"
+      )
+    ) {
       localStorage.removeItem("reportesInspeccion");
       localStorage.setItem("numeroEntrada", "1");
       setHistoricoReportes([]);
@@ -402,7 +432,9 @@ const ReporteInspeccion = () => {
   const formatoTiempo = (segundos) => {
     const mins = Math.floor(segundos / 60);
     const secs = segundos % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   return (
@@ -411,18 +443,36 @@ const ReporteInspeccion = () => {
         <div className="text-center">
           <Image src={logo} alt="Logo" fluid style={{ maxHeight: "80px" }} />
           <h1 className="text-primary mb-3">Reporte de Inspección</h1>
-          <div className={`h5 ${guardadoAutomatico ? "text-success" : "text-warning"}`}>
-            <i className={`bi ${guardadoAutomatico ? "bi-check-circle" : "bi-clock-history"} me-2`} />
+          <div
+            className={`h5 ${
+              guardadoAutomatico ? "text-success" : "text-warning"
+            }`}
+          >
+            <i
+              className={`bi ${
+                guardadoAutomatico ? "bi-check-circle" : "bi-clock-history"
+              } me-2`}
+            />
             {guardadoAutomatico
               ? "Datos autoguardados"
-              : `Autoguardado en: ${formatoTiempo(TIEMPO_AUTOGUARDADO - tiempoInactivo)}`}
+              : `Autoguardado en: ${formatoTiempo(
+                  TIEMPO_AUTOGUARDADO - tiempoInactivo
+                )}`}
           </div>
         </div>
       </Card.Header>
 
       <Card.Body className="p-4">
-        {error && <Alert variant="danger" dismissible onClose={() => setError(null)}>{error}</Alert>}
-        {success && <Alert variant="success" dismissible>Operación exitosa!</Alert>}
+        {error && (
+          <Alert variant="danger" dismissible onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert variant="success" dismissible>
+            Operación exitosa!
+          </Alert>
+        )}
 
         <Form onSubmit={handleSubmit}>
           <Card className="mb-4">
@@ -450,86 +500,94 @@ const ReporteInspeccion = () => {
                 <i className="bi bi-box-seam me-2" />
                 Piezas Inspeccionadas
               </h4>
-              {formData.numerosPieza.map((pieza, index) => (
-                <div key={index} className="mb-4">
-                  <Row className="g-2">
-                    <Col md={5}>
-                      <Form.Control
-                        type="text"
-                        placeholder={`Buscar producto (ID o descripción)`}
-                        value={pieza.numero}
-                        onChange={(e) => {
-                          setBusqueda(e.target.value);
-                          handlePiezaChange(index, "numero", e.target.value);
-                        }}
-                        onFocus={() => setBusquedaActiva(true)}
-                        onBlur={() => setTimeout(() => setBusquedaActiva(false), 200)}
-                        list={`productos-list-${index}`}
-                        autoComplete="off"
-                        required
-                      />
-                      <datalist id={`productos-list-${index}`}>
-                        {productos.map((producto) => (
-                          <option 
-                            key={producto.id} 
-                            value={producto.producto_id}
-                          >
-                            {producto.cliente_id} - {producto.descripcion}
-                          </option>
-                        ))}
-                      </datalist>
-                      
-                      {pieza.metadata && (
-                        <div className="mt-2">
-                          <Badge bg="info" className="me-2">
-                            Cliente: {pieza.metadata.cliente_id}
-                          </Badge>
-                          <Badge bg="secondary">
-                            Descripción: {pieza.metadata.descripcion}
-                          </Badge>
-                        </div>
-                      )}
-                    </Col>
+              {formData.numerosPieza.map((pieza, index) => {
+  console.log(`Renderizando pieza ${index}:`, pieza); // Debug 3
+  
+  return (
+    <div key={index} className="mb-4">
+      <Row className="g-2">
+        <Col md={5}>
+          <Form.Control
+            type="text"
+            placeholder="Buscar producto (ID o descripción)"
+            value={pieza.numero}
+            onChange={(e) => {
+              setBusqueda(e.target.value);
+              handlePiezaChange(index, "numero", e.target.value);
+            }}
+            onFocus={() => setBusquedaActiva(true)}
+            onBlur={() => setTimeout(() => setBusquedaActiva(false), 200)}
+            list={`productos-list-${index}`}
+            autoComplete="off"
+            required
+          />
+          <datalist id={`productos-list-${index}`}>
+            {productos.map((producto) => (
+              <option 
+                key={producto.id} 
+                value={producto.producto_id}
+              >
+                {producto.cliente_id} - {producto.descripcion}
+              </option>
+            ))}
+          </datalist>
+        </Col>
 
-                    <Col md={5}>
-                      <Form.Control
-                        type="number"
-                        placeholder="Cantidad"
-                        value={pieza.cantidad}
-                        onChange={(e) =>
-                          handlePiezaChange(index, "cantidad", e.target.value)
-                        }
-                        min="1"
-                        required
-                      />
-                    </Col>
+        {/* Sección de metadata - Versión corregida */}
+        <Col md={5}>
+          {pieza.metadata && (
+            <div className="mb-2 p-2 bg-light rounded">
+              <div className="d-flex flex-column gap-1">
+                <small className="text-primary">
+                  <strong>Cliente:</strong> {pieza.metadata.cliente_id}
+                </small>
+                <small className="text-success">
+                  <strong>Clave:</strong> {pieza.numero}
+                </small>
+                <small className="text-dark">
+                  <strong>Descripción:</strong> {pieza.metadata.descripcion}
+                </small>
+              </div>
+            </div>
+          )}
+          <Form.Control
+            type="number"
+            placeholder="Cantidad"
+            value={pieza.cantidad}
+            onChange={(e) => handlePiezaChange(index, "cantidad", e.target.value)}
+            min="1"
+            required
+          />
+        </Col>
 
-                    {index === 0 && formData.numerosPieza.length < 2 && (
-                      <Col md={2}>
-                        <Button
-                          variant="outline-primary"
-                          onClick={agregarPieza}
-                          className="w-100"
-                        >
-                          <i className="bi bi-plus-lg me-2" />
-                          Pieza
-                        </Button>
-                      </Col>
-                    )}
-                  </Row>
-                  
-                  {index > 0 && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="text-danger mt-2"
-                      onClick={() => eliminarPieza(index)}
-                    >
-                      <i className="bi bi-trash" /> Eliminar pieza
-                    </Button>
-                  )}
-                </div>
-              ))}
+        {index === 0 && formData.numerosPieza.length < 2 && (
+          <Col md={2}>
+            <Button
+              variant="outline-primary"
+              onClick={agregarPieza}
+              className="w-100"
+            >
+              <i className="bi bi-plus-lg me-2" />
+              Pieza
+            </Button>
+          </Col>
+        )}
+      </Row>
+      
+      {index > 0 && (
+        <Button
+          variant="link"
+          size="sm"
+          className="text-danger mt-2"
+          onClick={() => eliminarPieza(index)}
+        >
+          <i className="bi bi-trash" /> Eliminar pieza
+        </Button>
+      )}
+    </div>
+  );
+})} 
+            
             </Card.Body>
           </Card>
 
@@ -675,7 +733,10 @@ const ReporteInspeccion = () => {
                 </Row>
               </Card.Header>
               <Card.Body className="p-0">
-                <div className="table-responsive" style={{ maxHeight: "400px" }}>
+                <div
+                  className="table-responsive"
+                  style={{ maxHeight: "400px" }}
+                >
                   <Table striped hover className="mb-0">
                     <thead className="sticky-top bg-light">
                       <tr>
@@ -690,7 +751,9 @@ const ReporteInspeccion = () => {
                         <tr key={index}>
                           <td className="fw-bold">{reporte.numeroEntrada}</td>
                           <td>
-                            {new Date(reporte.fecha).toLocaleDateString("es-MX")}
+                            {new Date(reporte.fecha).toLocaleDateString(
+                              "es-MX"
+                            )}
                           </td>
                           <td>
                             <Badge bg="success" className="fs-6">
