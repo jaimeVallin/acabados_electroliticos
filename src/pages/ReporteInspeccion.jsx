@@ -509,7 +509,7 @@ const ReporteInspeccion = () => {
         <Col md={5}>
           <Form.Control
             type="text"
-            placeholder="Buscar producto (ID o descripción)"
+            placeholder="Buscar producto"
             value={pieza.numero}
             onChange={(e) => {
               setBusqueda(e.target.value);
@@ -535,30 +535,41 @@ const ReporteInspeccion = () => {
 
         {/* Sección de metadata - Versión corregida */}
         <Col md={5}>
-          {pieza.metadata && (
-            <div className="mb-2 p-2 bg-light rounded">
-              <div className="d-flex flex-column gap-1">
-                <small className="text-primary">
-                  <strong>Cliente:</strong> {pieza.metadata.cliente_id}
-                </small>
-                <small className="text-success">
-                  <strong>Clave:</strong> {pieza.numero}
-                </small>
-                <small className="text-dark">
-                  <strong>Descripción:</strong> {pieza.metadata.descripcion}
-                </small>
-              </div>
-            </div>
-          )}
-          <Form.Control
-            type="number"
-            placeholder="Cantidad"
-            value={pieza.cantidad}
-            onChange={(e) => handlePiezaChange(index, "cantidad", e.target.value)}
-            min="1"
-            required
-          />
-        </Col>
+  {pieza.metadata && (
+    <Card className="mb-2 border-primary">
+      <Card.Body className="p-2">
+        <Row>
+          <Col md={6}>
+            <Form.Label className="small text-muted">Cliente</Form.Label>
+            <Form.Control 
+              plaintext 
+              readOnly 
+              value={pieza.metadata.cliente_id}
+              className="fw-bold text-primary"
+            />
+          </Col>
+          <Col md={6}>
+            <Form.Label className="small text-muted">Descripción</Form.Label>
+            <Form.Control 
+              plaintext 
+              readOnly 
+              value={pieza.metadata.descripcion}
+              className="fw-bold text-dark"
+            />
+          </Col>
+        </Row>
+      </Card.Body>
+    </Card>
+  )}
+  <Form.Control
+    type="number"
+    placeholder="Cantidad"
+    value={pieza.cantidad}
+    onChange={(e) => handlePiezaChange(index, "cantidad", e.target.value)}
+    min="1"
+    required
+  />
+</Col>
 
         {index === 0 && formData.numerosPieza.length < 2 && (
           <Col md={2}>
