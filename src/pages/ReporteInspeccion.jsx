@@ -51,16 +51,18 @@ const ReporteInspeccion = () => {
   const [guardadoAutomatico, setGuardadoAutomatico] = useState(false);
 
   const defectos = [
-    "MANCHA NEGRA",
-    "TORNA SOL",
-    "ESCURRIMIENTO",
-    "ASPERO",
-    "QUEMADURA",
-    "OPACO",
-    "PUNTO DE CONTACTO",
-    "COLOR DESIGUAL",
-    "OXIDO",
-    "OTRO",
+  "BURBUJA O DESPRENDIMIENTO",
+  "MANCHA BLANCA",
+  "MANCHA NEGRA",
+  "MANCHA TORNASOL",
+  "ESCURRIMIENTO",
+  "ASPERO",
+  "QUEMADURA",
+  "OPACO",
+  "PUNTO DE CONTACTO",
+  "COLOR DESIGUAL",
+  "OXIDO",
+  "OTRO"
   ];
 
   useEffect(() => {
@@ -125,45 +127,51 @@ const ReporteInspeccion = () => {
   }, [formData.numerosPieza, guardadoAutomatico]);
 
   useEffect(() => {
-    const buscarProductos = async () => {
+    const buscarProductos = () => {
       if (!busquedaActiva || busqueda.length < 2) {
         setProductos([]);
         return;
       }
 
-      const claveLocal = `productos_cache_${busqueda}`;
+      const productosCache =
+        JSON.parse(localStorage.getItem("productos_cache")) || [];
+      const searchTerm = busqueda.toLowerCase();
 
-      if (hayInternet()) {
-        try {
-          const { data, error } = await supabase
-            .from("productos")
-            .select("*")
-            .or(
-              `cliente_id.ilike.%${busqueda}%,producto_id.ilike.%${busqueda}%,combinado_id.ilike.%${busqueda}%,descripcion.ilike.%${busqueda}%`
-            )
-            .limit(10);
+      // Búsqueda offline en todos los campos
+      const resultados = productosCache.filter((producto) => {
+        return Object.values(producto).some((value) =>
+          String(value).toLowerCase().includes(searchTerm)
+        );
+      });
 
-          if (error) throw error;
-
-          localStorage.setItem(claveLocal, JSON.stringify(data));
-          setProductos(data || []);
-        } catch (error) {
-          console.error("Error buscando productos en línea:", error);
-          setProductos([]);
-        }
-      } else {
-        const dataLocal = localStorage.getItem(claveLocal);
-        if (dataLocal) {
-          setProductos(JSON.parse(dataLocal));
-        } else {
-          setProductos([]);
-        }
-      }
+      setProductos(resultados.slice(0, 10)); // Limitar a 10 resultados
     };
-
     const debounce = setTimeout(buscarProductos, 300);
     return () => clearTimeout(debounce);
   }, [busqueda, busquedaActiva, supabase]);
+  useEffect(() => {
+    // Guardar productos en localStorage cada 5 min por si hay conexión intermitente
+    const interval = setInterval(async () => {
+      if (hayInternet()) {
+        const { data: nuevosProductos } = await supabase
+          .from("productos")
+          .select("*");
+
+        localStorage.setItem(
+          "productos_cache",
+          JSON.stringify(nuevosProductos)
+        );
+      }
+    }, 300000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const productosIniciales =
+      JSON.parse(localStorage.getItem("productos_cache")) || [];
+    setProductos(productosIniciales);
+  }, []);
 
   const resetearTemporizador = () => {
     setTiempoInactivo(0);
@@ -184,10 +192,9 @@ const ReporteInspeccion = () => {
           cliente_id: productoSeleccionado.cliente_id,
           combinado_id: productoSeleccionado.combinado_id,
           descripcion: productoSeleccionado.descripcion,
+          numero_parte: productoSeleccionado.producto_id // Nuevo campo
         },
-    
       };
-      
 
       console.log("Nuevos datos de pieza:", nuevosNumerosPieza[index]); // Debug 2
 
@@ -298,12 +305,18 @@ const ReporteInspeccion = () => {
 
     try {
       setLoading(true);
+    const fechaActual = new Date();
+
+      setLoading(true);
       const dataToSend = {
         ...formData,
         numeroEntrada,
         totalInspeccionadas,
+        totalNG,
         fecha: new Date().toISOString(),
+        horaSalida: fechaActual.toLocaleTimeString('es-MX'),
         usuario: (await supabase.auth.getSession()).data.session?.user.email,
+        
       };
 
       setHistoricoReportes((prev) => [...prev, dataToSend]);
@@ -327,6 +340,10 @@ const ReporteInspeccion = () => {
       setLoading(false);
     }
   };
+  const totalNG = Object.values(formData.defectos).reduce(
+    (sum, val) => sum + (parseInt(val) || 0),
+    0
+  );
 
   const cargarReporte = (reporte) => {
     setFormData({
@@ -344,74 +361,119 @@ const ReporteInspeccion = () => {
   };
 
   const prepararDatosParaExcel = () => {
-    const encabezados = [
-      "No.",
-      "Número de Entrada",
-      "Cliente ID",
-      "Producto ID",
-      "Descripción",
-      "Cantidad",
-      "Defectos Detectados",
-      "Total OK",
-      "Total Inspeccionadas",
-      "Fecha",
-      "Usuario",
+    // Definir estructura de defectos según columnas del Excel
+    const columnasDefectos = [
+      "BURBUJA O DESPRENDIMIENTO",
+      "MANCHA BLANCA", 
+      "MANCHA NEGRA",
+      "MANCHA TORNASOL",
+      "ESCURRIMIENTO",
+      "ASPERO",
+      "QUEMADURA",
+      "OPACO",
+      "PUNTO DE CONTACTO",
+      "COLOR DESIGUAL",
+      "OXIDO",
+      "OTRO"
     ];
-
-    const filas = historicoReportes.flatMap((reporte, index) =>
-      reporte.numerosPieza.map((pieza) => [
-        index + 1,
-        reporte.numeroEntrada,
-        pieza.metadata?.cliente_id || "N/A",
-        pieza.numero,
-        pieza.metadata?.descripcion || "N/A",
-        pieza.cantidad,
-        Object.entries(reporte.defectos)
-          .filter(([_, val]) => val > 0)
-          .map(([defecto]) => defecto)
-          .join(", "),
-        reporte.totalOK,
-        reporte.totalInspeccionadas,
-        new Date(reporte.fecha).toLocaleString("es-MX"),
-        reporte.usuario,
-      ])
-    );
-
-    return [encabezados, ...filas];
+  
+    // Generar filas base (15 registros como en el template)
+    const filasBase = Array.from({ length: 15 }, (_, i) => ({
+      numeroEntrada: i + 1,
+      datos: null
+    }));
+  
+    // Mapear reportes a las filas correspondientes
+    historicoReportes.forEach((reporte, index) => {
+      if (index < 15) {
+        const defectosMapeados = columnasDefectos.map(defecto => {
+          const valorDefecto = reporte.defectos[defecto];
+          
+          if (valorDefecto === undefined) return "0";
+          if (Array.isArray(valorDefecto)) return valorDefecto.join(", ");
+          return valorDefecto;
+        });
+    
+        filasBase[index] = {
+          numeroEntrada: reporte.numeroEntrada,
+          datos: {
+            ...reporte,
+            defectosMapeados
+          }
+        };
+      }
+    });
+  
+    // Crear estructura exacta del Excel
+    const datos = [
+      ["", "", "", "Reporte de Inspección 1 Linea 3", ...Array(14).fill(""), "CODIGO", "FPR-05"],
+      ["", "", "", "", ...Array(14).fill(""), "VERSION", "1"],
+      ["", "", "", "", ...Array(14).fill(""), "ACESSO", "B"],
+      ["", "", "", "", ...Array(14).fill(""), "PAGINA", "1 de 7"],
+      [
+        "No. DE ENTRADA", 
+        "", 
+        "NUMERO DE PARTE", 
+        "DEFECTO", 
+        ...columnasDefectos, 
+        "CANTIDAD NG", 
+        "CANTIDAD OK", 
+        "TOTAL ISPECCIONADAS", 
+        "FECHA", 
+        "HORA DE SALIDA", 
+        "OBSERVACIONES"
+      ],
+      ...filasBase.map((fila, index) => [
+        fila.datos?.numeroEntrada || index + 1,
+        "",
+        fila.datos?.numerosPieza[0]?.numero || "",
+        "",
+        ...(fila.datos?.defectosMapeados || Array(12).fill("0")),
+        "",
+        fila.datos?.totalOK || "0",
+        fila.datos?.totalInspeccionadas || "0",
+        fila.datos?.fecha ? new Date(fila.datos.fecha).toLocaleDateString("es-MX") : "",
+        "",
+        fila.datos?.horaSalida || "",
+        fila.datos?.comentarios || ""
+      ]),
+      ["Este documento es propiedad exclusiva de ACABADOS ELECTROLITICOS DE AGUASCALIENTES S.A. de C.V.", ...Array(19).fill("")],
+      ["", ...Array(19).fill("")],
+      ["NOTA: Unicamente se registrara la cantidad de defectos de acuerdo al numero de parte registrada.", ...Array(19).fill("")]
+    ];
+  
+    return datos;
   };
-
+  
+  // Modificar la función de exportación
   const exportarAExcel = () => {
-    if (historicoReportes.length === 0) {
-      setError("No hay reportes para exportar");
-      return;
-    }
-
-    const wb = XLSX.utils.book_new();
     const datos = prepararDatosParaExcel();
-
-    datos.unshift([], ["Reporte de Inspección - Línea 3"], []);
-
+    const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(datos);
-
+    
+    // Ajustar anchos de columnas
     ws["!cols"] = [
-      { width: 5 },
-      { width: 15 },
-      { width: 15 },
-      { width: 15 },
-      { width: 25 },
-      { width: 10 },
-      { width: 30 },
-      { width: 10 },
-      { width: 15 },
-      { width: 20 },
-      { width: 25 },
+      { width: 10 }, // No. Entrada
+      { width: 5 },  // Espacio
+      { width: 15 }, // Número de parte
+      { width: 15 }, // Defecto
+      ...Array(12).fill({ width: 12 }), // Columnas de defectos
+      { width: 12 }, // CANTIDAD NG
+      { width: 12 }, // CANTIDAD OK
+      { width: 18 }, // TOTAL INSPECCIONADAS
+      { width: 15 }, // FECHA
+      { width: 15 }, // HORA DE SALIDA
+      { width: 25 }  // OBSERVACIONES
     ];
-
-    XLSX.utils.book_append_sheet(wb, ws, "Reporte Inspección");
-    XLSX.writeFile(
-      wb,
-      `Reporte_Inspeccion_Linea3_${new Date().toISOString().split("T")[0]}.xlsx`
-    );
+  
+    // Fusionar celdas para encabezados
+    ws["!merges"] = [
+      { s: { r: 0, c: 3 }, e: { r: 0, c: 17 } }, // Título principal
+      { s: { r: 4, c: 3 }, e: { r: 4, c: 14 } }  // Encabezado DEFECTO
+    ];
+  
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte Insp 1 Linea 3 pag 1");
+    XLSX.writeFile(wb, `FPR-05_Reporte_Inspeccion_VER.1_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const limpiarReportes = () => {
@@ -501,104 +563,111 @@ const ReporteInspeccion = () => {
                 Piezas Inspeccionadas
               </h4>
               {formData.numerosPieza.map((pieza, index) => {
-  console.log(`Renderizando pieza ${index}:`, pieza); // Debug 3
-  
-  return (
-    <div key={index} className="mb-4">
-      <Row className="g-2">
-        <Col md={5}>
-          <Form.Control
-            type="text"
-            placeholder="Buscar producto"
-            value={pieza.numero}
-            onChange={(e) => {
-              setBusqueda(e.target.value);
-              handlePiezaChange(index, "numero", e.target.value);
-            }}
-            onFocus={() => setBusquedaActiva(true)}
-            onBlur={() => setTimeout(() => setBusquedaActiva(false), 200)}
-            list={`productos-list-${index}`}
-            autoComplete="off"
-            required
-          />
-          <datalist id={`productos-list-${index}`}>
-            {productos.map((producto) => (
-              <option 
-                key={producto.id} 
-                value={producto.producto_id}
-              >
-                {producto.cliente_id} - {producto.descripcion}
-              </option>
-            ))}
-          </datalist>
-        </Col>
+                console.log(`Renderizando pieza ${index}:`, pieza); // Debug 3
 
-        {/* Sección de metadata - Versión corregida */}
-        <Col md={5}>
-  {pieza.metadata && (
-    <Card className="mb-2 border-primary">
-      <Card.Body className="p-2">
-        <Row>
-          <Col md={6}>
-            <Form.Label className="small text-muted">Cliente</Form.Label>
-            <Form.Control 
-              plaintext 
-              readOnly 
-              value={pieza.metadata.cliente_id}
-              className="fw-bold text-primary"
-            />
-          </Col>
-          <Col md={6}>
-            <Form.Label className="small text-muted">Descripción</Form.Label>
-            <Form.Control 
-              plaintext 
-              readOnly 
-              value={pieza.metadata.descripcion}
-              className="fw-bold text-dark"
-            />
-          </Col>
-        </Row>
-      </Card.Body>
-    </Card>
-  )}
-  <Form.Control
-    type="number"
-    placeholder="Cantidad"
-    value={pieza.cantidad}
-    onChange={(e) => handlePiezaChange(index, "cantidad", e.target.value)}
-    min="1"
-    required
-  />
-</Col>
+                return (
+                  <div key={index} className="mb-4">
+                    <Row className="g-2">
+                      <Col md={5}>
+                        <Form.Control
+                          type="text"
+                          placeholder="Buscar producto"
+                          value={pieza.numero}
+                          onChange={(e) => {
+                            setBusqueda(e.target.value);
+                            handlePiezaChange(index, "numero", e.target.value);
+                          }}
+                          onFocus={() => setBusquedaActiva(true)}
+                          onBlur={() =>
+                            setTimeout(() => setBusquedaActiva(false), 200)
+                          }
+                          list={`productos-list-${index}`}
+                          autoComplete="off"
+                          required
+                        />
+                        <datalist id={`productos-list-${index}`}>
+                          {productos.map((producto) => (
+                            <option
+                              key={producto.id}
+                              value={producto.producto_id}
+                            >
+                              {producto.cliente_id} - {producto.descripcion}
+                            </option>
+                          ))}
+                        </datalist>
+                      </Col>
 
-        {index === 0 && formData.numerosPieza.length < 2 && (
-          <Col md={2}>
-            <Button
-              variant="outline-primary"
-              onClick={agregarPieza}
-              className="w-100"
-            >
-              <i className="bi bi-plus-lg me-2" />
-              Pieza
-            </Button>
-          </Col>
-        )}
-      </Row>
-      
-      {index > 0 && (
-        <Button
-          variant="link"
-          size="sm"
-          className="text-danger mt-2"
-          onClick={() => eliminarPieza(index)}
-        >
-          <i className="bi bi-trash" /> Eliminar pieza
-        </Button>
-      )}
-    </div>
-  );
-})} 
-            
+                      {/* Sección de metadata - Versión corregida */}
+                      <Col md={5}>
+                        {pieza.metadata && (
+                          <Card className="mb-2 border-primary">
+                            <Card.Body className="p-2">
+                              <Row>
+                                <Col md={6}>
+                                  <Form.Label className="small text-muted">
+                                    Cliente
+                                  </Form.Label>
+                                  <Form.Control
+                                    plaintext
+                                    readOnly
+                                    value={pieza.metadata.cliente_id}
+                                    className="fw-bold text-primary"
+                                  />
+                                </Col>
+                                <Col md={6}>
+                                  <Form.Label className="small text-muted">
+                                    Descripción
+                                  </Form.Label>
+                                  <Form.Control
+                                    plaintext
+                                    readOnly
+                                    value={pieza.metadata.descripcion}
+                                    className="fw-bold text-dark"
+                                  />
+                                </Col>
+                              </Row>
+                            </Card.Body>
+                          </Card>
+                        )}
+                        <Form.Control
+                          type="number"
+                          placeholder="Cantidad"
+                          value={pieza.cantidad}
+                          onChange={(e) =>
+                            handlePiezaChange(index, "cantidad", e.target.value)
+                          }
+                          min="1"
+                          required
+                        />
+                      </Col>
+
+                      {index === 0 && formData.numerosPieza.length < 2 && (
+                        <Col md={2}>
+                          <Button
+                            variant="outline-primary"
+                            onClick={agregarPieza}
+                            className="w-100"
+                          >
+                            <i className="bi bi-plus-lg me-2" />
+                            Pieza
+                          </Button>
+                        </Col>
+                      )}
+                    </Row>
+
+                    {index > 0 && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="text-danger mt-2"
+                        onClick={() => eliminarPieza(index)}
+                      >
+                        <i className="bi bi-trash" /> Eliminar pieza
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </Card.Body>
           </Card>
 

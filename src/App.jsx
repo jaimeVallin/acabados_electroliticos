@@ -44,7 +44,7 @@ const App = () => {
           <Routes>
             {/* Rutas protegidas */}
             <Route element={<AuthRoute />}>
-              <Route path="/" element={<CheckListTinas />} />
+              <Route path="/" element={<ReporteInspeccion />} />
               <Route path="/checklist-tinas" element={<CheckListTinas />} />
               <Route path="/reporte-inspeccion" element={<ReporteInspeccion />} />
             </Route>

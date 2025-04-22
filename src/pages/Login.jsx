@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Card, Form, Spinner } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
-import { supabase } from '../supabase/client';
+import { supabase } from "../supabase/client";
 
 const Login = () => {
   const emailRef = useRef(null);
@@ -30,7 +30,7 @@ const Login = () => {
     try {
       setErrorMsg("");
       setLoading(true);
-      
+
       // Validación de campos vacíos
       if (!passwordRef.current?.value || !emailRef.current?.value) {
         setErrorMsg("Por favor complete todos los campos");
@@ -39,19 +39,29 @@ const Login = () => {
 
       // Formatear el email agregando @aea.com si no está presente
       let userEmail = emailRef.current.value.trim();
-      if (!userEmail.endsWith('@aea.com')) {
-        userEmail = userEmail.split('@')[0] + '@aea.com';
+      if (!userEmail.endsWith("@aea.com")) {
+        userEmail = userEmail.split("@")[0] + "@aea.com";
       }
 
       // Autenticación con Supabase
       const { error } = await supabase.auth.signInWithPassword({
         email: userEmail,
-        password: passwordRef.current.value
+        password: passwordRef.current.value,
       });
 
       if (error) {
         setErrorMsg(error.message || "Credenciales incorrectas");
       } else {
+        // Precargar TODOS los productos al hacer login
+        const { data: productos, error: errorProductos } = await supabase
+          .from("productos")
+          .select("*");
+
+        if (errorProductos) throw errorProductos;
+
+        // Guardar en localStorage para uso offline
+        localStorage.setItem("productos_cache", JSON.stringify(productos));
+
         navigate("/");
       }
     } catch (error) {
@@ -61,29 +71,28 @@ const Login = () => {
       setLoading(false);
     }
   };
-  
 
   return (
     <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light">
-      <Card className="w-100 shadow-sm border-0" style={{ maxWidth: '450px' }}>
+      <Card className="w-100 shadow-sm border-0" style={{ maxWidth: "450px" }}>
         <Card.Body className="p-4 p-md-5">
           <div className="text-center mb-4">
             <h2 className="fw-bold">Iniciar Sesión</h2>
             <p className="text-muted">Ingrese sus credenciales para acceder</p>
           </div>
-          
+
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="formEmail">
               <Form.Label>Usuario</Form.Label>
-              <Form.Control 
-                type="text" 
-                ref={emailRef} 
-                required 
+              <Form.Control
+                type="text"
+                ref={emailRef}
+                required
                 placeholder="Ingrese su nombre de usuario"
                 onBlur={(e) => {
                   // Limpiar cualquier @ que el usuario haya ingresado
-                  if (e.target.value.includes('@')) {
-                    e.target.value = e.target.value.split('@')[0];
+                  if (e.target.value.includes("@")) {
+                    e.target.value = e.target.value.split("@")[0];
                   }
                 }}
               />
@@ -94,18 +103,18 @@ const Login = () => {
 
             <Form.Group className="mb-4" controlId="formPassword">
               <Form.Label>Contraseña</Form.Label>
-              <Form.Control 
-                type="password" 
-                ref={passwordRef} 
-                required 
-                placeholder="Ingrese su contraseña" 
+              <Form.Control
+                type="password"
+                ref={passwordRef}
+                required
+                placeholder="Ingrese su contraseña"
               />
             </Form.Group>
 
             {errorMsg && (
-              <Alert 
-                variant="danger" 
-                onClose={() => setErrorMsg("")} 
+              <Alert
+                variant="danger"
+                onClose={() => setErrorMsg("")}
                 dismissible
                 className="mt-3"
               >
@@ -114,9 +123,9 @@ const Login = () => {
             )}
 
             <div className="d-grid gap-2 mt-4">
-              <Button 
-                variant="primary" 
-                type="submit" 
+              <Button
+                variant="primary"
+                type="submit"
                 disabled={loading}
                 size="lg"
               >
