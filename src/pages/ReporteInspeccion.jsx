@@ -437,9 +437,9 @@ const ReporteInspeccion = () => {
         fila.datos?.horaSalida || "",
         fila.datos?.comentarios || ""
       ]),
-      ["Este documento es propiedad exclusiva de ACABADOS ELECTROLITICOS DE AGUASCALIENTES S.A. de C.V.", ...Array(19).fill("")],
       ["", ...Array(19).fill("")],
-      ["NOTA: Unicamente se registrara la cantidad de defectos de acuerdo al numero de parte registrada.", ...Array(19).fill("")]
+      ["", ...Array(19).fill("")],
+      ["", ...Array(19).fill("")]
     ];
   
     return datos;
@@ -499,6 +499,16 @@ const ReporteInspeccion = () => {
       .padStart(2, "0")}`;
   };
 
+  const defectoTieneDatos = (defecto) => {
+    const valorDefecto = formData.defectos[defecto];
+    if (!valorDefecto) return false;
+    
+    if (Array.isArray(valorDefecto)) {
+      return valorDefecto.some(v => parseInt(v) > 0);
+    }
+    return parseInt(valorDefecto) > 0;
+  };
+
   return (
     <Card className="border-primary shadow-lg">
       <Card.Header className="bg-light border-0 py-4">
@@ -507,7 +517,7 @@ const ReporteInspeccion = () => {
           <h1 className="text-primary mb-3">Reporte de Inspección</h1>
           <div
             className={`h5 ${
-              guardadoAutomatico ? "text-success" : "text-warning"
+              guardadoAutomatico ? "text-success" : "text-danger"
             }`}
           >
             <i
@@ -672,32 +682,46 @@ const ReporteInspeccion = () => {
           </Card>
 
           <Card className="mb-4">
-            <Card.Body>
-              <h4 className="text-primary mb-3">
-                <i className="bi bi-exclamation-triangle me-2" />
-                Defectos Detectados
-              </h4>
-              <div
-                className="d-grid gap-2"
-                style={{
-                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                }}
-              >
-                {defectos.map((defecto) => (
-                  <Button
-                    key={defecto}
-                    variant={
-                      selectedDefect === defecto ? "primary" : "outline-primary"
-                    }
-                    onClick={() => handleDefectoSelect(defecto)}
-                    className="text-truncate"
-                  >
-                    {defecto}
-                  </Button>
-                ))}
-              </div>
-            </Card.Body>
-          </Card>
+  <Card.Body>
+    <h4 className="text-primary mb-3">
+      <i className="bi bi-exclamation-triangle me-2" />
+      Defectos Detectados
+    </h4>
+    <div
+      className="d-grid gap-2"
+      style={{
+        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      }}
+    >
+      {defectos.map((defecto) => {
+        const tieneDatos = formData.defectos[defecto] && 
+          (Array.isArray(formData.defectos[defecto]) 
+            ? formData.defectos[defecto].some(v => parseInt(v) > 0)
+            : parseInt(formData.defectos[defecto]) > 0);
+            
+        return (
+          <Button
+            key={defecto}
+            variant={
+              selectedDefect === defecto || tieneDatos
+                ? "primary"
+                : "outline-primary"
+            }
+            onClick={() => handleDefectoSelect(defecto)}
+            className="text-truncate"
+          >
+            {defecto}
+            {tieneDatos && (
+              <span className="ms-2">
+                <i className="bi bi-check-circle-fill" />
+              </span>
+            )}
+          </Button>
+        );
+      })}
+    </div>
+  </Card.Body>
+</Card>
 
           {selectedDefect && (
             <Card className="mb-4">
@@ -823,6 +847,7 @@ const ReporteInspeccion = () => {
                         <th># Entrada</th>
                         <th>Fecha</th>
                         <th>Total OK</th>
+                        <th>Total N/G</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
@@ -838,6 +863,11 @@ const ReporteInspeccion = () => {
                           <td>
                             <Badge bg="success" className="fs-6">
                               {reporte.totalOK}
+                            </Badge>
+                          </td>
+                          <td>
+                            <Badge bg="danger" className="fs-6">
+                              {reporte.totalInspeccionadas - reporte.totalOK }
                             </Badge>
                           </td>
                           <td>

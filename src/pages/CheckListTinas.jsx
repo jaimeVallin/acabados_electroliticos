@@ -136,31 +136,85 @@ const CheckListTinas = () => {
     }
   };
 
+  const handleLineaChange = (e) => {
+    resetearTemporizador(); // <-- Nuevo reset aquí
+    setLineaSeleccionada(e.target.value);
+  };
+
   const exportarAExcel = () => {
     if (historicoChecklists.length === 0) {
       setError("No hay datos para exportar");
       return;
     }
-
+  
     const wb = XLSX.utils.book_new();
-    const wsData = [
-      ["Línea", "Fecha", "Temp. Desengrase", "Amperaje Galv.", "pH Sello", "Comentarios"],
-      ...historicoChecklists.map(item => [
-        item.linea,
-        new Date(item.fecha).toLocaleString(),
-        item.desengraseInmersion.temperatura,
-        item.galvanizado.amperaje,
-        item.sello.ph,
-        item.comentarios
-      ])
-    ];
-
+    const wsData = [];
+  
+    // Metadatos y encabezado
+    wsData.push(
+      [],
+      [],
+      [],
+      ["", "", "Check List de Tinas", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Código:", "", "", "FPR-01"],
+      ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Versión:", "", "", "1"],
+      ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Acceso:", "", "", "B"],
+      ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Página:", "", "", "1 de 4"],
+      ["Fecha:", "", "", "", `Línea: ${lineaSeleccionada.replace("Línea ", "")}`, "", "", "", "", "", "", "", "Realizo:", "", "", "", "", "", "", "", "", "", "",],
+      ["Proceso", "Especificación", "Rango", "08:00", "", "10:00", "", "12:00", "", "14:00", "", "16:00", "", "18:00", "", "20:00", "", "21:00", "", "22:00", "", "COMENTARIOS"]
+    );
+  
+    // Función para generar filas de OK/NG basadas en los datos
+    const generarFilas = (proceso, especificacion, rango, datos) => {
+      const filas = [];
+      datos.forEach((item, idx) => {
+        const row = [
+          proceso,
+          especificacion,
+          rango,
+          ...item.horas.flatMap(hora => [hora.ok ? "OK" : "NG", ""]), // Columnas OK/NG por hora
+          item.comentario || ""
+        ];
+        filas.push(row);
+        proceso = ""; // Solo mostrar proceso en la primera fila del grupo
+      });
+      return filas;
+    };
+  
+    // Mapear datos del historial a la estructura del Excel
+    historicoChecklists.forEach(item => {
+      const horas = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "21:00", "22:00"]
+        .map(hora => ({ ok: Math.random() > 0.2 })); // Ejemplo: mock de datos
+  
+      // Añadir procesos (ajustar según estructura real de datos)
+      wsData.push(
+        ["Desengrase de inmersión", "Temperatura", "55-90°C", ...Array(18).fill(""), item.comentarios],
+        ["", "Nivel", "Que tape las piezas", ...horas.flatMap(h => [h.ok ? "OK" : "NG", ""]), ""],
+        ["Desengrase Electrolítico", "Temperatura", "55-90°C", ...Array(18).fill(""), ""],
+        ["", "Amperaje", "400 a 600 amp", ...Array(18).fill(""), ""],
+        ["", "Nivel", "Que tape las piezas", ...horas.flatMap(h => [h.ok ? "OK" : "NG", ""]), ""],
+        // ... Repetir para otras secciones
+        ["COMENTARIOS GENERALES:", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", item.comentarios]
+      );
+    });
+  
+    // Añadir footer
+    wsData.push(
+      [],
+      [ "Este documento es propiedad exclusiva de ACABADOS ELECTROLITICOS DE AGUASCALIENTES S.A. de C.V..." ]
+    );
+  
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [
-      { width: 12 }, { width: 20 }, { width: 15 },
-      { width: 15 }, { width: 10 }, { width: 40 }
+    
+    // Ajustar anchos de columnas (relativo al Excel original)
+    ws["!cols"] = Array(24).fill().map(() => ({ width: 12 }));
+    
+    // Combinar celdas para encabezados
+    ws["!merges"] = [
+      { s: { r: 3, c: 2 }, e: { r: 3, c: 19 } }, // Título "Check List de Tinas"
+      { s: { r: 8, c: 0 }, e: { r: 8, c: 2 } }, // Fecha
+      { s: { r: 8, c: 4 }, e: { r: 8, c: 10 } }, // Línea
     ];
-
+  
     XLSX.utils.book_append_sheet(wb, ws, "Checklists");
     XLSX.writeFile(wb, `Checklist_Tinas_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
@@ -226,7 +280,7 @@ const CheckListTinas = () => {
                 <Form.Label className="fw-bold">Línea de Producción</Form.Label>
                 <Form.Select
                   value={lineaSeleccionada}
-                  onChange={(e) => setLineaSeleccionada(e.target.value)}
+                  onChange={handleLineaChange} // <-- Nuevo handler aquí
                   className="fs-5"
                   required
                 >
@@ -295,22 +349,7 @@ const CheckListTinas = () => {
                 </Col>
               </Row>
 
-              <Card className="mb-4">
-                <Card.Body>
-                  <Form.Group controlId="comentarios">
-                    <Form.Label className="fw-bold">Observaciones/Comentarios</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      name="comentarios"
-                      value={formData.comentarios}
-                      onChange={handleChange}
-                      placeholder="Registre cualquier observación relevante..."
-                      style={{ minHeight: '100px' }}
-                      className="fs-5"
-                    />
-                  </Form.Group>
-                </Card.Body>
-              </Card>
+              
 
               {historicoChecklists.length > 0 && (
                 <Card>
