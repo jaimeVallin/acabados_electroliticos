@@ -239,8 +239,8 @@ const ReporteInspeccion = () => {
             key,
             val !== undefined
               ? Array.isArray(val)
-                ? [...val, "0"]
-                : [val, "0"]
+                ? [...val, ""]
+                : [val, ""]
               : undefined,
           ])
         ),
@@ -275,8 +275,8 @@ const ReporteInspeccion = () => {
           ...prev.defectos,
           [defecto]:
             prev.numerosPieza.length > 1
-              ? Array(prev.numerosPieza.length).fill("0")
-              : "0",
+              ? Array(prev.numerosPieza.length).fill("")
+              : "",
         },
       }));
     }
@@ -738,7 +738,7 @@ const ReporteInspeccion = () => {
                         <Form.Control
                           type="number"
                           value={
-                            formData.defectos[selectedDefect]?.[index] || "0"
+                            formData.defectos[selectedDefect]?.[index] || ""
                           }
                           onChange={(e) =>
                             handleDefectoChange(e.target.value, index)
