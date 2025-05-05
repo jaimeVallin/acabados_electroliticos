@@ -5,7 +5,15 @@
   padding: 2rem;
   text-align: center;
 }
+.bg-danger-light {
+  background-color: rgba(220, 53, 69, 0.1);
+  transition: background-color 0.3s ease;
+}
 
+/* Para mantener la legibilidad en modo oscuro */
+[data-bs-theme="dark"] .bg-danger-light {
+  background-color: rgba(220, 53, 69, 0.3);
+}
 .logo {
   height: 6em;
   padding: 1.5em;

@@ -1,6 +1,37 @@
 import { useRef } from "react";
 import { Card, Form, Row, Col, Button } from "react-bootstrap";
 
+// Componente de entrada con validación de rango
+const InputConValidacion = ({ placeholder, value, ...props }) => {
+  // Función para extraer el rango del placeholder
+  const extraerRango = () => {
+    if (!placeholder) return { min: null, max: null };
+    
+    // Maneja formatos como "55 - 90° C" o "100 - 500 amp"
+    const match = placeholder.match(/(\d+)\s*[-a]\s*(\d+)/);
+    if (match) {
+      return { min: parseFloat(match[1]), max: parseFloat(match[2]) };
+    }
+    return { min: null, max: null };
+  };
+
+  const { min, max } = extraerRango();
+  const fueraDeRango = value && (
+    (min !== null && parseFloat(value) < min) || 
+    (max !== null && parseFloat(value) > max)
+  );
+  
+  return (
+    <Form.Control
+      {...props}
+      placeholder={placeholder}
+      value={value}
+      className={fueraDeRango ? "border-danger bg-danger-light" : ""}
+      title={fueraDeRango ? `Valor fuera del rango recomendado (${placeholder})` : ""}
+    />
+  );
+};
+
 const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
   // Crear referencias para todos los campos interactivos
   const electroTempRef = useRef(null);
@@ -47,7 +78,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Temperatura (°C)</Form.Label>
-                <Form.Control
+                <InputConValidacion
                   ref={electroTempRef}
                   type="number"
                   placeholder="55 - 90° C"
@@ -61,7 +92,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Amperaje (Amp)</Form.Label>
-                <Form.Control
+                <InputConValidacion
                   ref={electroAmpRef}
                   type="number"
                   placeholder="100 - 500 amp"
@@ -200,7 +231,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Temperatura (°C)</Form.Label>
-                <Form.Control
+                <InputConValidacion
                   ref={galvanizadoTempRef}
                   type="number"
                   placeholder="17 - 38°C"
@@ -214,7 +245,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Amperaje (Amp)</Form.Label>
-                <Form.Control
+                <InputConValidacion
                   ref={galvanizadoAmpRef}
                   type="number"
                   placeholder="100 a 200 amp"
@@ -228,7 +259,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>PH</Form.Label>
-                <Form.Control
+                <InputConValidacion
                   ref={galvanizadoPhRef}
                   type="number"
                   placeholder="4.2 - 5.8"
@@ -236,6 +267,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
                   value={formData.galvanizado.ph}
                   onChange={handleChange}
                   onKeyPress={(e) => handleKeyPress(e, galvanizadoNivelRef)}
+                  step="0.1"
                 />
               </Form.Group>
             </Col>
@@ -367,7 +399,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Temperatura (°C)</Form.Label>
-                <Form.Control
+                <InputConValidacion
                   ref={selloTempRef}
                   type="number"
                   placeholder="17 - 29°C"
@@ -381,7 +413,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>PH</Form.Label>
-                <Form.Control
+                <InputConValidacion
                   ref={selloPhRef}
                   type="number"
                   placeholder="1.8 - 2.3"
@@ -389,6 +421,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
                   value={formData.sello.ph}
                   onChange={handleChange}
                   onKeyPress={(e) => handleKeyPress(e, selloNivelRef)}
+                  step="0.1"
                 />
               </Form.Group>
             </Col>
@@ -488,7 +521,7 @@ const Linea4Checklist = ({ formData, handleChange, handleArrayChange }) => {
         <Card.Body>
           <Form.Group className="mb-3">
             <Form.Label>Temperatura (°C)</Form.Label>
-            <Form.Control
+            <InputConValidacion
               ref={hornoTempRef}
               type="number"
               placeholder="55 - 90°C"

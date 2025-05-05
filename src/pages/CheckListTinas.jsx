@@ -30,7 +30,9 @@ const CheckListTinas = () => {
     desengraseInmersion: { temperatura: '', nivel: false },
     desengraseElectrolitico: { temperatura: '', amperaje: '', nivel: false },
     galvanizado: { temperatura: '', amperaje: '', ph: '', nivel: false },
+    galvanizado2: { temperatura: '', amperaje: '', ph: '', nivel: false },
     sello: { temperatura: '', ph: '', nivel: false },
+    selloColdipBlack: { temperatura: '', ph: '', nivel: false },
     horno: { temperatura: '' },
     comentarios: '',
     enjuagues: Array(10).fill({ nivel: false }),
@@ -137,8 +139,214 @@ const CheckListTinas = () => {
   };
 
   const handleLineaChange = (e) => {
-    resetearTemporizador(); // <-- Nuevo reset aquí
+    resetearTemporizador();
     setLineaSeleccionada(e.target.value);
+  };
+
+  const generarHojaExcel = (lineaNum) => {
+    const lineaData = historicoChecklists.filter(item => item.linea === `Línea ${lineaNum}`);
+    const wsData = [];
+    
+    // Encabezado
+    wsData.push(
+      ["", "", "", "", `Línea: ${lineaNum}`, "", "", "", "", "", "", "", "", "Realizo:", "", "", "", "", "", "", "", "", ""],
+      ["Proceso", "Especificación", "Rango", "08:00:00", "", "10:00:00", "", "12:00:00", "", "14:00:00", "", "16:00:00", "", "18:00:00", "", "20:00:00", "", "21:00:00", "", "22:00:00", "", "COMENTARIOS"],
+      Array(22).fill("")
+    );
+
+    // Procesos según línea
+    const procesos = {
+      1: [
+        ["Desengrase de inmersión", "Temperatura", "55-90°C"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Desengrase Electrolítico", "Temperatura", "55-90°C"],
+        ["", "Amperaje", "400 a 600 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Activado", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Galvanizado", "Temperatura", "17-38°C"],
+        ["", "PH", "4.2-5.8"],
+        ["", "Amperaje", "100 a 400 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Pre-sello", "Nivel", ""],
+        ["Sello", "Temperatura", "17-29°C"],
+        ["", "PH", "1.5-3.0"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Horno", "Temperatura", "50-90°C"]
+      ],
+      2: [
+        ["Desengrase de inmersión", "Temperatura", "55-90°C"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Desengrase Electrolítico", "Temperatura", "55-90°C"],
+        ["", "Amperaje", "400 a 600 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Activado", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Galvanizado", "Temperatura", "17-38°C"],
+        ["", "PH", "4.2-5.8"],
+        ["", "Amperaje", "100 a 400 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Pre-sello", "Nivel", ""],
+        ["Sello", "Temperatura", "17-29°C"],
+        ["", "PH", "1.5-3.0"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Horno", "Temperatura", "50-90°C"]
+      ],
+      3: [
+        ["Desengrase de inmersión", "Temperatura", "55-90°C"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Desengrase Electrolítico", "Temperatura", "55-90°C"],
+        ["", "Amperaje", "400 a 600 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Galvanizado 1", "Temperatura", "17-38°C"],
+        ["", "PH", "4.2-5.8"],
+        ["", "Amperaje", "100 a 400 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Galvanizado 2", "Temperatura", "17-38°C"],
+        ["", "PH", "4.2-5.8"],
+        ["", "Amperaje", "100 a 400 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Pre-sello", "Nivel", ""],
+        ["Sello", "Temperatura", "17-29°C"],
+        ["", "PH", "1.5-3.0"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Horno", "Temperatura", "50-90°C"]
+      ],
+      4: [
+        ["Desengrase Electrolítico", "Temperatura", "55-90°C"],
+        ["", "Amperaje", "400 a 600 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Activado", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Galvanizado", "Temperatura", "17-38°C"],
+        ["", "PH", "4.2-5.8"],
+        ["", "Amperaje", "100 a 400 amp"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Sello Coldip Black", "Temperatura", "17-29°C"],
+        ["", "PH", "1.5-3.0"],
+        ["", "Nivel", "Que tape las piezas"],
+        ["Enjuague", "Nivel", ""],
+        ["Enjuague", "Nivel", ""],
+        ["Horno", "Temperatura", "50-90°C"]
+      ]
+    };
+
+    // Agregar procesos
+    procesos[lineaNum].forEach(proceso => {
+      wsData.push([...proceso, ...Array(19).fill("")]);
+    });
+
+    // Agregar datos
+    lineaData.forEach(item => {
+      const horas = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "21:00", "22:00"];
+      
+      // Mapeo de campos a posiciones en Excel
+      const mapeoCampos = {
+        1: {
+          'desengraseInmersion.temperatura': 3,
+          'desengraseInmersion.nivel': 4,
+          'desengraseElectrolitico.temperatura': 5,
+          'desengraseElectrolitico.amperaje': 6,
+          'desengraseElectrolitico.nivel': 7,
+          'enjuagues.0.nivel': 8,
+          'enjuagues.1.nivel': 9,
+          'activados.0.nivel': 10,
+          'enjuagues.2.nivel': 11,
+          'enjuagues.3.nivel': 12,
+          'galvanizado.temperatura': 13,
+          'galvanizado.ph': 14,
+          'galvanizado.amperaje': 15,
+          'galvanizado.nivel': 16,
+          'enjuagues.4.nivel': 17,
+          'preSellos.0.nivel': 18,
+          'sello.temperatura': 19,
+          'sello.ph': 20,
+          'sello.nivel': 21,
+          'enjuagues.5.nivel': 22,
+          'enjuagues.6.nivel': 23,
+          'horno.temperatura': 24
+        },
+        // ... (mapeos similares para líneas 2, 3 y 4)
+      };
+
+      horas.forEach((hora, horaIdx) => {
+        const colExcel = 3 + (horaIdx * 2);
+        
+        Object.entries(mapeoCampos[lineaNum]).forEach(([campo, fila]) => {
+          const [seccion, propiedad] = campo.includes('.') ? 
+            campo.split('.') : [campo, ''];
+          
+          let valor;
+          if (seccion.includes('enjuagues') || seccion.includes('activados') || seccion.includes('preSellos')) {
+            const [arrayName, index, prop] = campo.split('.');
+            valor = item[arrayName][index][prop];
+          } else {
+            valor = item[seccion][propiedad];
+          }
+
+          if (typeof valor === 'boolean') {
+            wsData[fila][colExcel] = valor ? "OK" : "NG";
+          } else if (valor) {
+            wsData[fila][colExcel] = valor;
+          }
+        });
+      });
+
+      // Comentarios
+      wsData[wsData.length - 1][22] = item.comentarios;
+    });
+
+    // Footer
+    wsData.push(
+      Array(22).fill(""),
+      ["Este documento es propiedad exclusiva de ACABADOS ELECTROLITICOS DE AGUASCALIENTES S.A. de C.V..."]
+    );
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Configurar merges
+    const mergesComunes = [
+      { s: { r: 0, c: 4 }, e: { r: 0, c: 10 } }, // Línea
+      { s: { r: 0, c: 13 }, e: { r: 0, c: 21 } } // Realizo
+    ];
+
+    // Merges específicos por proceso
+    procesos[lineaNum].forEach((proceso, idx) => {
+      if (proceso[0] !== "") {
+        mergesComunes.push({ s: { r: idx + 3, c: 0 }, e: { r: idx + 3, c: 2 } });
+      }
+    });
+
+    ws["!merges"] = mergesComunes;
+    ws["!cols"] = Array(22).fill().map(() => ({ width: 14 }));
+
+    return ws;
   };
 
   const exportarAExcel = () => {
@@ -146,76 +354,15 @@ const CheckListTinas = () => {
       setError("No hay datos para exportar");
       return;
     }
-  
+
     const wb = XLSX.utils.book_new();
-    const wsData = [];
-  
-    // Metadatos y encabezado
-    wsData.push(
-      [],
-      [],
-      [],
-      ["", "", "Check List de Tinas", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Código:", "", "", "FPR-01"],
-      ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Versión:", "", "", "1"],
-      ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Acceso:", "", "", "B"],
-      ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Página:", "", "", "1 de 4"],
-      ["Fecha:", "", "", "", `Línea: ${lineaSeleccionada.replace("Línea ", "")}`, "", "", "", "", "", "", "", "Realizo:", "", "", "", "", "", "", "", "", "", "",],
-      ["Proceso", "Especificación", "Rango", "08:00", "", "10:00", "", "12:00", "", "14:00", "", "16:00", "", "18:00", "", "20:00", "", "21:00", "", "22:00", "", "COMENTARIOS"]
-    );
-  
-    // Función para generar filas de OK/NG basadas en los datos
-    const generarFilas = (proceso, especificacion, rango, datos) => {
-      const filas = [];
-      datos.forEach((item, idx) => {
-        const row = [
-          proceso,
-          especificacion,
-          rango,
-          ...item.horas.flatMap(hora => [hora.ok ? "OK" : "NG", ""]), // Columnas OK/NG por hora
-          item.comentario || ""
-        ];
-        filas.push(row);
-        proceso = ""; // Solo mostrar proceso en la primera fila del grupo
-      });
-      return filas;
-    };
-  
-    // Mapear datos del historial a la estructura del Excel
-    historicoChecklists.forEach(item => {
-      const horas = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "21:00", "22:00"]
-        .map(hora => ({ ok: Math.random() > 0.2 })); // Ejemplo: mock de datos
-  
-      // Añadir procesos (ajustar según estructura real de datos)
-      wsData.push(
-        ["Desengrase de inmersión", "Temperatura", "55-90°C", ...Array(18).fill(""), item.comentarios],
-        ["", "Nivel", "Que tape las piezas", ...horas.flatMap(h => [h.ok ? "OK" : "NG", ""]), ""],
-        ["Desengrase Electrolítico", "Temperatura", "55-90°C", ...Array(18).fill(""), ""],
-        ["", "Amperaje", "400 a 600 amp", ...Array(18).fill(""), ""],
-        ["", "Nivel", "Que tape las piezas", ...horas.flatMap(h => [h.ok ? "OK" : "NG", ""]), ""],
-        // ... Repetir para otras secciones
-        ["COMENTARIOS GENERALES:", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", item.comentarios]
-      );
+    
+    // Crear hoja para cada línea
+    [1, 2, 3, 4].forEach(lineaNum => {
+      const ws = generarHojaExcel(lineaNum);
+      XLSX.utils.book_append_sheet(wb, ws, `Check List Linea ${lineaNum}`);
     });
-  
-    // Añadir footer
-    wsData.push(
-      [],
-      [ "Este documento es propiedad exclusiva de ACABADOS ELECTROLITICOS DE AGUASCALIENTES S.A. de C.V..." ]
-    );
-  
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    // Ajustar anchos de columnas (relativo al Excel original)
-    ws["!cols"] = Array(24).fill().map(() => ({ width: 12 }));
-    
-    // Combinar celdas para encabezados
-    ws["!merges"] = [
-      { s: { r: 3, c: 2 }, e: { r: 3, c: 19 } }, // Título "Check List de Tinas"
-      { s: { r: 8, c: 0 }, e: { r: 8, c: 2 } }, // Fecha
-      { s: { r: 8, c: 4 }, e: { r: 8, c: 10 } }, // Línea
-    ];
-  
-    XLSX.utils.book_append_sheet(wb, ws, "Checklists");
+
     XLSX.writeFile(wb, `Checklist_Tinas_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
@@ -259,7 +406,7 @@ const CheckListTinas = () => {
             Check-List de Tinas
           </h1>
           {lineaSeleccionada && (
-            <div className={`h5 ${guardadoAutomatico ? 'text-success' : 'text-warning'}`}>
+            <div className={`h5 ${guardadoAutomatico ? 'text-success' : 'text-danger'}`}>
               <i className={`bi ${guardadoAutomatico ? 'bi-check-circle' : 'bi-clock-history'} me-2`} />
               {guardadoAutomatico 
                 ? 'Datos autoguardados'
@@ -280,7 +427,7 @@ const CheckListTinas = () => {
                 <Form.Label className="fw-bold">Línea de Producción</Form.Label>
                 <Form.Select
                   value={lineaSeleccionada}
-                  onChange={handleLineaChange} // <-- Nuevo handler aquí
+                  onChange={handleLineaChange}
                   className="fs-5"
                   required
                 >
@@ -348,8 +495,6 @@ const CheckListTinas = () => {
                   </Button>
                 </Col>
               </Row>
-
-              
 
               {historicoChecklists.length > 0 && (
                 <Card>

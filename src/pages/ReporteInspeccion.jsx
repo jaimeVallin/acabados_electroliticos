@@ -302,25 +302,26 @@ const ReporteInspeccion = () => {
   const handleSubmit = async (e) => {
     e?.preventDefault();
     setError(null);
-
+  
     try {
       setLoading(true);
-    const fechaActual = new Date();
-
-      setLoading(true);
+      const fechaActual = new Date();
+  
       const dataToSend = {
         ...formData,
         numeroEntrada,
         totalInspeccionadas,
-        totalNG,
-        fecha: new Date().toISOString(),
-        horaSalida: fechaActual.toLocaleTimeString('es-MX'),
-        usuario: (await supabase.auth.getSession()).data.session?.user.email,
-        
+        totalOK: formData.totalOK,
+        comentarios: formData.comentarios,
+        fecha: fechaActual.toISOString(),
+        horaSalida: fechaActual.toLocaleTimeString("es-MX", { 
+          hour: "2-digit", 
+          minute: "2-digit" 
+        })
       };
-
-      setHistoricoReportes((prev) => [...prev, dataToSend]);
-      setNumeroEntrada((prev) => prev + 1);
+  
+      setHistoricoReportes(prev => [...prev, dataToSend]);
+      setNumeroEntrada(prev => prev + 1);
 
       setSuccess(true);
       setTiempoInactivo(0);
@@ -335,15 +336,16 @@ const ReporteInspeccion = () => {
       });
       setSelectedDefect(null);
     } catch (err) {
-      setError(err.message || "Error al guardar el reporte");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const totalNG = Object.values(formData.defectos).reduce(
-    (sum, val) => sum + (parseInt(val) || 0),
-    0
-  );
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // const totalNG = Object.values(formData.defectos).reduce(
+  //   (sum, val) => sum + (parseInt(val) || 0),
+  //   0
+  // );
 
   const cargarReporte = (reporte) => {
     setFormData({
@@ -361,10 +363,9 @@ const ReporteInspeccion = () => {
   };
 
   const prepararDatosParaExcel = () => {
-    // Definir estructura de defectos según columnas del Excel
-    const columnasDefectos = [
+    const defectosColumns = [
       "BURBUJA O DESPRENDIMIENTO",
-      "MANCHA BLANCA", 
+      "MANCHA BLANCA",
       "MANCHA NEGRA",
       "MANCHA TORNASOL",
       "ESCURRIMIENTO",
@@ -377,104 +378,83 @@ const ReporteInspeccion = () => {
       "OTRO"
     ];
   
-    // Generar filas base (15 registros como en el template)
-    const filasBase = Array.from({ length: 15 }, (_, i) => ({
-      numeroEntrada: i + 1,
-      datos: null
-    }));
-  
-    // Mapear reportes a las filas correspondientes
-    historicoReportes.forEach((reporte, index) => {
-      if (index < 15) {
-        const defectosMapeados = columnasDefectos.map(defecto => {
-          const valorDefecto = reporte.defectos[defecto];
-          
-          if (valorDefecto === undefined) return "0";
-          if (Array.isArray(valorDefecto)) return valorDefecto.join(", ");
-          return valorDefecto;
-        });
-    
-        filasBase[index] = {
-          numeroEntrada: reporte.numeroEntrada,
-          datos: {
-            ...reporte,
-            defectosMapeados
-          }
-        };
-      }
-    });
-  
-    // Crear estructura exacta del Excel
+    // 1. Cabecera del reporte
     const datos = [
-      ["", "", "", "Reporte de Inspección 1 Linea 3", ...Array(14).fill(""), "CODIGO", "FPR-05"],
-      ["", "", "", "", ...Array(14).fill(""), "VERSION", "1"],
-      ["", "", "", "", ...Array(14).fill(""), "ACESSO", "B"],
-      ["", "", "", "", ...Array(14).fill(""), "PAGINA", "1 de 7"],
+      ["", "", "", "Reporte de Inspección", ...Array(14).fill(""), Array(15).fill(""), "HORA DE SALIDA", "OBSERVACIONES"], 
+      Array(20).fill(""), // Fila vacía
+      Array(20).fill(""), // Fila vacía
       [
-        "No. DE ENTRADA", 
-        "", 
-        "NUMERO DE PARTE", 
-        "DEFECTO", 
-        ...columnasDefectos, 
-        "CANTIDAD NG", 
-        "CANTIDAD OK", 
-        "TOTAL ISPECCIONADAS", 
-        "FECHA", 
-        "HORA DE SALIDA", 
-        "OBSERVACIONES"
-      ],
-      ...filasBase.map((fila, index) => [
-        fila.datos?.numeroEntrada || index + 1,
+        "No. DE ENTRADA",
         "",
-        fila.datos?.numerosPieza[0]?.numero || "",
-        "",
-        ...(fila.datos?.defectosMapeados || Array(12).fill("0")),
-        "",
-        fila.datos?.totalOK || "0",
-        fila.datos?.totalInspeccionadas || "0",
-        fila.datos?.fecha ? new Date(fila.datos.fecha).toLocaleDateString("es-MX") : "",
-        "",
-        fila.datos?.horaSalida || "",
-        fila.datos?.comentarios || ""
-      ]),
-      ["", ...Array(19).fill("")],
-      ["", ...Array(19).fill("")],
-      ["", ...Array(19).fill("")]
+        "NUMERO DE PARTE",
+        "DEFECTO",
+        ...defectosColumns,
+        "CANTIDAD NG",
+        "CANTIDAD OK",
+        "TOTAL ISPECCIONADAS"
+      ]
     ];
+  
+    // 2. Llenar datos (15 filas)
+    for (let i = 0; i < 15; i++) {
+      const reporte = historicoReportes[i] || {};
+      const defectosData = defectosColumns.map(defecto => {
+        if (!reporte.defectos || !reporte.defectos[defecto]) return "";
+        return Array.isArray(reporte.defectos[defecto]) 
+          ? reporte.defectos[defecto][0] || ""
+          : reporte.defectos[defecto];
+      });
+  
+      datos.push([
+        reporte.numeroEntrada || i + 1,
+        "",
+        reporte.numerosPieza?.[0]?.numero || "",
+        "", // Celda DEFECTO vacía (no combinada)
+        ...defectosData,
+        reporte.totalInspeccionadas - (reporte.totalOK || 0),
+        reporte.totalOK || "",
+        reporte.totalInspeccionadas || "",
+        reporte.horaSalida || "",
+        reporte.comentarios || ""
+      ]);
+    }
+  
+    // 3. Añadir filas vacías finales
+    datos.push(Array(20).fill(""));
+    datos.push(Array(20).fill(""));
   
     return datos;
   };
   
-  // Modificar la función de exportación
   const exportarAExcel = () => {
     const datos = prepararDatosParaExcel();
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(datos);
-    
-    // Ajustar anchos de columnas
+  
+    // Configurar anchos de columnas
     ws["!cols"] = [
-      { width: 10 }, // No. Entrada
-      { width: 5 },  // Espacio
-      { width: 15 }, // Número de parte
-      { width: 15 }, // Defecto
-      ...Array(12).fill({ width: 12 }), // Columnas de defectos
+      { width: 12 }, // No. Entrada
+      { width: 2 },  // Espacio
+      { width: 18 }, // Número de parte
+      { width: 10 }, // Defecto (columna vacía)
+      ...Array(12).fill({ width: 14 }), // Columnas de defectos individuales
       { width: 12 }, // CANTIDAD NG
       { width: 12 }, // CANTIDAD OK
-      { width: 18 }, // TOTAL INSPECCIONADAS
-      { width: 15 }, // FECHA
-      { width: 15 }, // HORA DE SALIDA
+      { width: 18 }, // TOTAL ISPECCIONADAS
+      { width: 15 }, // Vacía  
+      { width: 14 }, // HORA DE SALIDA
       { width: 25 }  // OBSERVACIONES
     ];
   
-    // Fusionar celdas para encabezados
+    // Fusionar solo el título principal (no las columnas de defectos)
     ws["!merges"] = [
-      { s: { r: 0, c: 3 }, e: { r: 0, c: 17 } }, // Título principal
-      { s: { r: 4, c: 3 }, e: { r: 4, c: 14 } }  // Encabezado DEFECTO
+      { s: { r: 0, c: 3 }, e: { r: 0, c: 16 } } // Título "Reporte de Inspección"
     ];
   
     XLSX.utils.book_append_sheet(wb, ws, "Reporte Insp 1 Linea 3 pag 1");
-    XLSX.writeFile(wb, `FPR-05_Reporte_Inspeccion_VER.1_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `Reporte_Inspeccion_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
+
 
   const limpiarReportes = () => {
     if (
