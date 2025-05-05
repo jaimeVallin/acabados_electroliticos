@@ -285,17 +285,20 @@ const ReporteInspeccion = () => {
   const handleDefectoChange = (value, piezaIndex = 0) => {
     resetearTemporizador();
     if (!selectedDefect) return;
-
+  
+    // Validar que sea un número válido (entero positivo) o cadena vacía
+    const numericValue = value === "" ? "" : Math.max(0, parseInt(value) || 0);
+  
     setFormData((prev) => ({
       ...prev,
       defectos: {
         ...prev.defectos,
         [selectedDefect]: Array.isArray(prev.defectos[selectedDefect])
-          ? prev.defectos[selectedDefect].map((v, i) =>
-              i === piezaIndex ? value : v
+          ? prev.defectos[selectedDefect].map((v, i) => 
+              i === piezaIndex ? numericValue : v
             )
-          : value,
-      },
+          : numericValue
+      }
     }));
   };
 
