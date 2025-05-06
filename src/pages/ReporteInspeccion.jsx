@@ -34,14 +34,23 @@ const ReporteInspeccion = () => {
   });
 
   // Estado principal del formulario
-  const [formData, setFormData] = useState({
-    numerosPieza: [{ numero: "", cantidad: "", metadata: null }], // Array de piezas
-    defectos: {}, // Objeto para almacenar defectos
-    totalOK: 0, // Total de piezas OK
-    comentarios: "", // Comentarios adicionales
-  });
+  // Estado principal del formulario
+const [formData, setFormData] = useState(() => {
+  const saved = localStorage.getItem("numeroEntrada");
+  const esPrimeraEntrada = !saved || parseInt(saved) === 1;
+  
+  return {
+    numerosPieza: esPrimeraEntrada 
+      ? [{ numero: "", cantidad: "", metadata: null }] 
+      : JSON.parse(localStorage.getItem("ultimosProductos")) || [{ numero: "", cantidad: "", metadata: null }],
+    defectos: {},
+    totalOK: 0,
+    comentarios: "",
+  };
+});
   
   // Estados para gestión de la UI y datos
+  const [ultimosProductos, setUltimosProductos] = useState([]);
   const [editandoReporte, setEditandoReporte] = useState(null); // ID del reporte en edición
   const [productos, setProductos] = useState([]); // Lista de productos disponibles
   const [busqueda, setBusqueda] = useState(""); // Término de búsqueda
@@ -94,6 +103,22 @@ const ReporteInspeccion = () => {
     localStorage.setItem("numeroEntrada", numeroEntrada.toString());
   }, [numeroEntrada]);
 
+  // Efecto para cargar últimos productos al inicio
+useEffect(() => {
+  const savedNumeroEntrada = localStorage.getItem("numeroEntrada");
+  const esPrimeraEntrada = !savedNumeroEntrada || parseInt(savedNumeroEntrada) === 1;
+  
+  if (!esPrimeraEntrada) {
+    const ultimosProductosGuardados = JSON.parse(localStorage.getItem("ultimosProductos")) || [];
+    if (ultimosProductosGuardados.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        numerosPieza: ultimosProductosGuardados
+      }));
+    }
+  }
+}, []);
+
   // Efecto para persistir historial de reportes en localStorage
   useEffect(() => {
     localStorage.setItem(
@@ -134,8 +159,52 @@ const ReporteInspeccion = () => {
       intervalo = setInterval(() => {
         setTiempoInactivo((prev) => {
           if (prev >= TIEMPO_AUTOGUARDADO) {
-            handleSubmit();
+            // Calcular siguiente número disponible
+            const siguienteNumero = Math.max(
+              ...historicoReportes.map(r => r.numeroEntrada),
+              numeroEntrada - 1
+            ) + 1;
+            
+            // Crear datos para autoguardado
+            const fechaActual = new Date();
+            const dataToSend = {
+              ...formData,
+              numeroEntrada: siguienteNumero,
+              totalInspeccionadas,
+              totalOK: formData.totalOK,
+              comentarios: formData.comentarios,
+              fecha: fechaActual.toISOString(),
+              horaSalida: fechaActual.toLocaleTimeString("es-MX", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+  
+            // Guardar reporte
+            setHistoricoReportes((prev) => [...prev, dataToSend]);
+            
+            // Actualizar al siguiente número
+            const nuevoNumero = siguienteNumero + 1;
+            setNumeroEntrada(nuevoNumero);
+            
+            // Limpiar formulario manteniendo productos
+            const productosUsados = formData.numerosPieza.map(pieza => ({
+              numero: pieza.numero,
+              cantidad: "",
+              metadata: pieza.metadata
+            }));
+            
+            localStorage.setItem("ultimosProductos", JSON.stringify(productosUsados));
+            
+            setFormData({
+              numerosPieza: productosUsados,
+              defectos: {},
+              totalOK: 0,
+              comentarios: "",
+            });
+  
             setGuardadoAutomatico(true);
+            setSelectedDefect(null);
             return 0;
           }
           return prev + 1;
@@ -143,7 +212,7 @@ const ReporteInspeccion = () => {
       }, 1000);
     }
     return () => clearInterval(intervalo);
-  }, [formData.numerosPieza, guardadoAutomatico]);
+  }, [formData.numerosPieza, guardadoAutomatico, historicoReportes, numeroEntrada, totalInspeccionadas]);
 
   // Efecto para búsqueda de productos con debounce
   useEffect(() => {
@@ -296,31 +365,26 @@ const ReporteInspeccion = () => {
         ...prev,
         defectos: {
           ...prev.defectos,
-          [defecto]: prev.numerosPieza.length > 1 
-            ? Array(prev.numerosPieza.length).fill("") 
-            : "", // Valor único para 1 pieza
+          [defecto]: Array(prev.numerosPieza.length).fill(""), // Siempre usar array
         },
       }));
     }
   };
-
-  // Maneja cambios en los valores de defectos
+  
+  // Modificar handleDefectoChange
   const handleDefectoChange = (value, piezaIndex = 0) => {
     resetearTemporizador();
     if (!selectedDefect) return;
-
-    // Validar que sea un número válido (entero positivo) o cadena vacía
+  
     const numericValue = value === "" ? "" : Math.max(0, parseInt(value) || 0);
-
+  
     setFormData((prev) => ({
       ...prev,
       defectos: {
         ...prev.defectos,
-        [selectedDefect]: Array.isArray(prev.defectos[selectedDefect])
-          ? prev.defectos[selectedDefect].map((v, i) =>
-              i === piezaIndex ? numericValue : v
-            )
-          : numericValue,
+        [selectedDefect]: prev.defectos[selectedDefect].map((v, i) =>
+          i === piezaIndex ? numericValue : v
+        ),
       },
     }));
   };
@@ -329,15 +393,21 @@ const ReporteInspeccion = () => {
   const handleSubmit = async (e) => {
     e?.preventDefault();
     setError(null);
-
+  
     try {
       setLoading(true);
       const fechaActual = new Date();
-
+  
+      // Determinar el siguiente número de entrada disponible
+      const siguienteNumero = Math.max(
+        ...historicoReportes.map(r => r.numeroEntrada),
+        numeroEntrada - 1
+      ) + 1;
+  
       // Prepara los datos para guardar
       const dataToSend = {
         ...formData,
-        numeroEntrada: editandoReporte || numeroEntrada,
+        numeroEntrada: editandoReporte || siguienteNumero,
         totalInspeccionadas,
         totalOK: formData.totalOK,
         comentarios: formData.comentarios,
@@ -347,7 +417,7 @@ const ReporteInspeccion = () => {
           minute: "2-digit",
         }),
       };
-
+  
       if (editandoReporte) {
         // Actualizar reporte existente
         setHistoricoReportes((prev) =>
@@ -355,24 +425,39 @@ const ReporteInspeccion = () => {
             reporte.numeroEntrada === editandoReporte ? dataToSend : reporte
           )
         );
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 3000);
       } else {
         // Crear nuevo reporte
         setHistoricoReportes((prev) => [...prev, dataToSend]);
-        setNumeroEntrada((prev) => prev + 1);
-
-        // Limpiar formulario
-        setFormData({
-          numerosPieza: [{ numero: "", cantidad: "", metadata: null }],
-          defectos: {},
-          totalOK: 0,
-          comentarios: "",
-        });
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 3000);
       }
-
+  
+      // Guardar los productos usados para la próxima entrada
+      const productosUsados = formData.numerosPieza.map(pieza => ({
+        numero: pieza.numero,
+        cantidad: "",
+        metadata: pieza.metadata
+      }));
+      
+      localStorage.setItem("ultimosProductos", JSON.stringify(productosUsados));
+  
+      // Actualizar al siguiente número disponible
+      const nuevoNumero = Math.max(
+        ...historicoReportes.map(r => r.numeroEntrada),
+        siguienteNumero
+      ) + 1;
+      
+      setNumeroEntrada(nuevoNumero);
+  
+      // Limpiar formulario manteniendo los productos (pero con cantidad vacía)
+      setFormData({
+        numerosPieza: productosUsados,
+        defectos: {},
+        totalOK: 0,
+        comentarios: "",
+      });
+      
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+  
       // Resetear estados de autoguardado
       setTiempoInactivo(0);
       setGuardadoAutomatico(false);
@@ -397,6 +482,7 @@ const ReporteInspeccion = () => {
 
     setEditandoReporte(reporte.numeroEntrada);
     setSelectedDefect(null);
+    setNumeroEntrada(reporte.numeroEntrada);
     setSuccess(true);
     setTimeout(() => setSuccess(false), 1500);
   };
@@ -516,10 +602,18 @@ const ReporteInspeccion = () => {
       )
     ) {
       localStorage.removeItem("reportesInspeccion");
+      localStorage.removeItem("ultimosProductos");
       localStorage.setItem("numeroEntrada", "1");
       setHistoricoReportes([]);
       setNumeroEntrada(1);
       setEditandoReporte(null);
+      // Resetear formulario a estado inicial (vacío)
+      setFormData({
+        numerosPieza: [{ numero: "", cantidad: "", metadata: null }],
+        defectos: {},
+        totalOK: 0,
+        comentarios: "",
+      });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     }
